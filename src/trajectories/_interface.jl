@@ -38,7 +38,9 @@ end
     expand_readout_and_sample!(output, readout_idx, m, trajectory::AbstractTrajectory, parameters, coil_sensitivities)
 
 For each ::AbstractTrajectory, a method should be added to this function that,
-given the magnetization `m` at the readout with index `readout_idx`, it computes the magnetization at other readout points (applying spatial encoding gradients, T₂ decay, B₀ rotation, etc...) and stores it into `output`.
+given the magnetization `m` at the echo time of the readout with index `readout_idx`, 
+it computes the magnetization at other readout points (applying spatial encoding gradients, 
+T₂ decay, B₀ rotation, etc...) and stores it into `output`.
 
 Arguments
 - `output`:         Pre-allocated output array (of `typeof(coil_sensitivities)`) in which the signal is stored.

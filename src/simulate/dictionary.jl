@@ -1,8 +1,8 @@
 """
     simulate(resource, sequence, parameters)
 
-Simulate the magnetization at echo times (without any spatial encoding gradients applied) 
-for all combinations of tissue parameters contained in `parameters`. 
+Simulate the magnetization at echo times (without any spatial encoding gradients applied)
+for all combinations of tissue parameters contained in `parameters`.
 
 Use this function to generate dictionaries for MR Fingerprinting purposes.
 
