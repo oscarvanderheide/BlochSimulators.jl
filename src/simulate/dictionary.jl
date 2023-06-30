@@ -83,16 +83,16 @@ Run Bloch simulations in a multi-threaded fashion on a single worker.
 """
 function _simulate!(output, ::CPUThreads, sequence, parameters)
 
-    # initialize state that gets updated during time integration
-    state = initialize_states(CPUThreads(), sequence)
-
     # voxel dimension of output array
     vd = length(size(output))
 
     # multi-threaded loop over voxels
     Threads.@threads for voxel ∈ eachindex(parameters)
-        # simulate!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
-        simulate!(view(output,:,voxel), sequence, state, parameters[voxel])
+        
+        # initialize state that gets updated during time integration
+        state = initialize_states(CPUThreads(), sequence)
+
+        simulate!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
     end
 
     return nothing
