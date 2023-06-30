@@ -99,7 +99,7 @@ end
     # m is magnetization at echo time
     # undo T2 decay and B0 phase that happened between start readout and echo time
     arg = Δt*R₂
-    hasB₀(p) && (arg -= im*Δt*2π*p.B₀)
+    hasB₀(p) && (arg -= im*Δt*2*π*p.B₀)
     return m * exp(arg)
 end
 
@@ -119,7 +119,7 @@ end
     x,y = p.x, p.y
 
     # go back in time to the start of the readout by undoing T₂ decay and B₀ rotation
-    m = rewind(m, R₂, (ns/2)*Δt, p)
+    m = rewind(m, R₂, (ns÷2)*Δt, p)
     # apply gradient prephaser (i.e. phase encoding + readout prephaser for Cartesian)
     m = prephaser(m, k⁰.re, k⁰.im, x, y)
     # apply readout gradient, T₂ decay and B₀ rotation
