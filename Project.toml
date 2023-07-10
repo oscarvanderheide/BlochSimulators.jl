@@ -19,6 +19,15 @@ Unitless = "c904d999-9673-4878-a3dd-e3ef1851788a"
 
 [compat]
 julia = "1.9"
+Adapt = "3.6"
+CUDA = "4.4"
+ComputationalResources = "0.3"
+DistributedArrays = "0.6"
+Functors = "0.4"
+OffsetArrays = "1.12"
+StaticArrays = "1.6"
+Unitful = "1.15"
+Unitless = "2.1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
