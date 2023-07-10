@@ -14,19 +14,26 @@ module BlochSimulators
     using InteractiveUtils # needed for subtypes function
     using Unitful, Unitless
 
-    # To perform simulations we need tissue parameters as inputs. Supported combinations of tissue parameters
-    # are defined tissueparameters.jl
+    # To perform simulations we need tissue parameters as inputs. 
+    # Supported combinations of tissue parameters are defined 
+    # in tissueparameters.jl
     include("parameters/tissueparameters.jl")
 
+    export AbstractTissueParameters, hasB₁, hasB₀
+    
     # Informal interface for sequence implementations. By convention,
     # a sequence::BlochSimulator is used to simulate magnetization at
     # echo times only.
     include("sequences/_interface.jl")
 
+    export BlochSimulator, IsochromatSimulator, EPGSimulator
+
     # Operator functions for isochromat model and EPG model
     include("operators/isochromat.jl")
     include("operators/epg.jl")
     include("operators/utils.jl")
+
+    export Isochromat, EPGStates
 
     # Currently included example sequences:
 

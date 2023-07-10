@@ -8,7 +8,7 @@ should contain fields that can describe the full trajectory during a sequence.
 """
 abstract type AbstractTrajectory end
 
-
+export AbstractTrajectory
 
 ### Functions that must be implemented for each trajectory
 

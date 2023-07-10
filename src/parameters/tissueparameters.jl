@@ -154,9 +154,6 @@ for P in subtypes(AbstractTissueParameters)
     @eval hasB₀(::$(P)) = $(:B₀ ∈ fieldnames(P))
 end
 
-
-export AbstractTissueParameters
-
 # Programatically export all subtypes of AbstractTissueParameters
 for P in subtypes(AbstractTissueParameters)
     @eval export $(Symbol(nameof(P)))
