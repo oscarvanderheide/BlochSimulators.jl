@@ -114,8 +114,8 @@ end
     R₂ = inv(p.T₂)
     ns = trajectory.nsamplesperreadout
     Δt = trajectory.Δt
-    k⁰ = trajectory.k_start_readout[readout_idx]
-    Δk = trajectory.Δk_adc[readout_idx]
+    @inbounds k⁰ = trajectory.k_start_readout[readout_idx]
+    @inbounds Δk = trajectory.Δk_adc[readout_idx]
     x,y = p.x, p.y
 
     # go back in time to the start of the readout by undoing T₂ decay and B₀ rotation
