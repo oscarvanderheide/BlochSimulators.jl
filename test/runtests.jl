@@ -300,9 +300,9 @@ end
 
 end
 
-@testset "Test Cartesian/Radial Trajectory" begin
+@testset "Test for SpokesTrajectory" begin
 
-    # Simulate magnetization at echo times for a single voxel
+    # Simulate magnetization at echo times for a single voxel with coordinates (0,0,0)
     nTR = 100
     sequence = FISP(nTR)
     parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, 0.0, 0.0)]
@@ -325,4 +325,60 @@ end
     s2 = simulate(CPU1(), sequence, [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, rand(), rand())], trajectory)
 
     @test abs.(d) ≈ abs.(s2[(ns÷2)+1:ns:end])
+
+end
+
+
+@testset "Tests for CartesianTrajectory" begin
+
+    # constants
+    nr = 100
+    ns = 128
+    Δt = 4e-6 # s
+    fovx = 10.0 # cm
+    fovy = 10.0 # cm
+    Δkˣ = 2π / fovx;
+    Δkʸ = 2π / fovy;
+    py = collect(-50:49)
+    k0 = [(-ns/2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr];
+    Δk = [Δkˣ + 0.0im for r in 1:nr];
+
+    # assemble Cartesian trajectory
+    cartesian = CartesianTrajectory(nr, ns, Δt, k0, Δk, py)
+
+    # test whether getindex method to reduce sequence length works
+    @test cartesian[1:50].k_start_readout == CartesianTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], py[1:50]).k_start_readout
+    @test cartesian[1:50].Δk_adc == CartesianTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], py[1:50]).Δk_adc
+    @test cartesian[1:50].py == CartesianTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], py[1:50]).py
+
+    @test sampling_mask(cartesian)[10] == CartesianIndices((1:ns, 10:10))
+
+    @test kspace_coordinates(cartesian)[:,1] = k0[1] .+ (-ns÷2):(ns÷2-1) .* Δk[1]
+end
+
+@testset "Tests for RadialTrajectory" begin
+
+    # assemble radial trajectory
+    os = 2;  # factor two oversampling
+    φ = π/((√5+1)/2) # golden angle of ~111 degrees
+    Δkˣ = 2π / (os*fovx);
+    φ = collect(φ .* (0:nr-1))
+    k0 = -(ns/2)*Δkˣ + 0.0im
+    k0 = collect(@. exp(im*φ) * k0)
+    Δk = Δkˣ + 0.0im
+    Δk = collect(@. exp(im*φ) * Δk)
+
+    radial = RadialTrajectory(nr, ns, Δt, k0, Δk, φ)
+
+    # test whether getindex method to reduce sequence length works
+    @test radial[1:50].k_start_readout == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50]).k_start_readout
+    @test radial[1:50].Δk_adc == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50]).Δk_adc
+    @test radial[1:50].φ  == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50]).φ
+
+    # test gradient delay for radial
+    S = rand(2,2)
+    radial_delay = deepcopy(radial)
+    add_gradient_delay!(radial_delay, S)
+    @test all(radial_delay.k_start_readout .== add_gradient_delay(radial, S).k_start_readout)
+
 end
