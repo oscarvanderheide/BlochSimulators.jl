@@ -14,6 +14,9 @@ module BlochSimulators
     using InteractiveUtils # needed for subtypes function
     using Unitful, Unitless
 
+    # hard-coded nr of threads per block on GPU
+    const THREADS_PER_BLOCK = 32
+
     # To perform simulations we need tissue parameters as inputs. 
     # Supported combinations of tissue parameters are defined 
     # in tissueparameters.jl
@@ -72,9 +75,9 @@ module BlochSimulators
     # # ComputationalResources is used to dispatch on the different computational resources.
 
     # # Main function to call a sequence simulator with a set of input parameters are defined in simulate.jl
-    include("simulate/dictionary.jl")
+    include("simulate/echos.jl")
     include("simulate/signal.jl")
 
-    export simulate
+    export simulate_echos, simulate_signal, echos_to_signal, phase_encoding!
 
 end # module

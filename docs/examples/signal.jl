@@ -1,15 +1,16 @@
 # # Simulate MR Signal
-
+using Pkg; Pkg.activate("docs")
 # In this example we are going to generate a phantom
 # and simulate the signal for a gradient-balanced sequence
 # with a Cartesian gradient trajectory
 
+## stuf
 using Revise
 using BlochSimulators
 using ComputationalResources
 using StaticArrays
 using LinearAlgebra
-using PyPlot
+# using PyPlot
 using FFTW
 import ImagePhantoms
 
@@ -33,13 +34,13 @@ parameters = map(T₁T₂B₀ρˣρʸxy, T₁, T₂, B₀, real.(ρ), imag.(ρ),
 # a TR of 10 ms and 0-π phase cycling. See `src/sequences/pssfp.jl` for the
 # sequence description and the fields for which values must be provided
 
-nTR = N
-RF_train = complex.(fill(40.0, nTR)) # constant flip angle train
+nTR = 5N
+RF_train = complex.(fill(90.0, nTR)) # constant flip angle train
 RF_train[2:2:end] .*= -1 # 0-π phase cycling
 nRF = 25 # nr of RF discretization points
 durRF = 0.001 # duration of RF excitation
 TR = 0.010 # repetition time
-TI = 10.0 # long inversion delay -> no inversion
+TI = 20.0 # long inversion delay -> no inversion
 gaussian = [exp(-(i-(nRF/2))^2 * inv(nRF)) for i ∈ 1:nRF] # RF excitation waveform
 γΔtRF = (π/180) * normalize(gaussian, 1) |> SVector{nRF} # normalize to flip angle of 1 degree
 Δt = (ex=durRF/nRF, inv = TI, pr = (TR - durRF)/2); # time intervals during TR
@@ -52,22 +53,22 @@ sequence = pSSFP(RF_train, TR, γΔtRF, Δt, γΔtGRz, z)
 # Next, we assemble a Cartesian trajectory with linear phase encoding
 # (see `src/trajectories/cartesian.jl`).
 
-nr = N # nr of readouts
+nr = 5N # nr of readouts
 ns = N # nr of samples per readout
 Δt_adc = 10^-5 # time between sample points
 py = -(N÷2):1:(N÷2)-1 # phase encoding indices
+py = repeat(py, nr÷N)
 Δkˣ = 2π / FOVˣ; # k-space step in x direction for Nyquist sampling
 Δkʸ = 2π / FOVʸ; # k-space step in y direction for Nyquist sampling
 k0 = [(-ns/2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr]; # starting points in k-space per readout
-Δk = [Δkˣ + 0.0im for r in 1:nr]; # k-space steps per sample point for each readout
 
-trajectory = CartesianTrajectory(nr,ns,Δt_adc,k0,Δk,py);
+trajectory = CartesianTrajectory(nr,ns,Δt_adc,k0,Δkˣ,py);
 
 # We use two different receive coils
 coil₁ = complex.(repeat(LinRange(0.5,1.0,N),1,N));
 coil₂ = coil₁';
 
-coil_sensitivities = map(SVector, coil₁, coil₂)
+coil_sensitivities = map(SVector{2}, vec(coil₁), vec(coil₂))
 
 # Now simulate the signal for the sequence, trajectory, phantom and coils on GPU
 
@@ -78,24 +79,33 @@ parameters          = gpu(f32(parameters))
 trajectory          = gpu(f32(trajectory))
 coil_sensitivities  = gpu(f32(coil_sensitivities))
 
-signal = simulate(CUDALibs(), sequence, parameters, trajectory, coil_sensitivities)
+using BlochSimulators.CUDA
 
-signal = collect(signal)
+resource = CUDALibs()
+# compute magnetization at echo times in all voxels
+CUDA.@time echos = simulate(resource, sequence, parameters);
+# apply phase encoding (typically only for Cartesian trajectories)
+CUDA.@time phase_encoding!(echos, trajectory, parameters)
+# compute signal from (phase-encoded) magnetization at echo times
+CUDA.@time signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities);
 
-# Let's look at fft images of the signals from the two different coils
-signal₁ = first.(signal)
-signal₂ = last.(signal)
+# signal = collect(signal)
+
+# # Let's look at fft images of the signals from the two different coils
+# signal₁ = first.(signal)
+# signal₂ = last.(signal)
 
 
-@. signal₁[2:2:end] *= -1 # correct for phase cycling
-@. signal₂[2:2:end] *= -1 # correct for phase cycling
+# @. signal₁[2:2:end] *= -1 # correct for phase cycling
+# @. signal₂[2:2:end] *= -1 # correct for phase cycling
 
-fft_image₁ = rot180(ifft(reshape(signal₁,N,N))) # rot180 instead of fftshifts
-fft_image₂ = rot180(ifft(reshape(signal₂,N,N))) # rot180 instead of fftshifts
+# fft_image₁ = rot180(ifft(reshape(signal₁,N,N))) # rot180 instead of fftshifts
+# fft_image₂ = rot180(ifft(reshape(signal₂,N,N))) # rot180 instead of fftshifts
 
-figure()
-subplot(1,3,1); imshow(abs.(ρ)); title("Ground truth \n proton density")
-subplot(1,3,2); imshow(abs.(fft_image₁)); title("fft-image coil 1")
-subplot(1,3,3); imshow(abs.(fft_image₂)); title("fft-image coil 2")
+# figure()
+# subplot(1,3,1); imshow(abs.(ρ)); title("Ground truth \n proton density")
+# subplot(1,3,2); imshow(abs.(fft_image₁)); title("fft-image coil 1")
+# subplot(1,3,3); imshow(abs.(fft_image₂)); title("fft-image coil 2")
 
-# Note the banding due to off-resonance
+# # Note the banding due to off-resonance
+

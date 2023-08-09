@@ -1,7 +1,7 @@
 ### Signal simulation code
 
 """
-    simulate(resource, sequence, parameters, trajectory, coil_sensitivities)
+    simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
 
 Simulate the MR signal at timepoint `t` from coil `i` as: `sᵢ(t) = ∑ⱼ cᵢⱼρⱼmⱼ(t)`,
 where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`,
@@ -16,200 +16,185 @@ in voxel `j` obtained through Bloch simulations.
 - `coil_sensitivities::AbstractVector{<:SVector{ncoils}}`: Vector with `ncoils` coil sensitivities for each voxel
 
 # Returns
-- `signal::Vector{<:SVector{ncoils}}`: Simulated MR signal for the `sequence` and `trajectory`. 
+- `signal::Vector{<:SVector{ncoils}}`: Simulated MR signal for the `sequence` and `trajectory`.
 At each timepoint, the signal for each of the `ncoils` is stored.
 """
-function simulate(resource, sequence, parameters, trajectory, coil_sensitivities)
+function simulate_signal(
+    resource::AbstractResource,
+    sequence::BlochSimulator,
+    parameters::AbstractArray{<:AbstractTissueParameters},
+    trajectory::AbstractTrajectory,
+    coil_sensitivities::AbstractVector{<:SVector})
 
-    @assert length(parameters) == length(coil_sensitivities)
+    @assert length(parameters) == size(coil_sensitivities,1)
+    # check that proton density is part of parameters
     @assert :ρˣ ∈ fieldnames(eltype(parameters))
     @assert :ρʸ ∈ fieldnames(eltype(parameters))
+    # check that spatial coordinates are part of parameters (only 2D for now)
     @assert :x ∈ fieldnames(eltype(parameters))
     @assert :y ∈ fieldnames(eltype(parameters))
 
     # compute magnetization at echo times in all voxels
-    echos = simulate(resource, sequence, parameters)
+    echos = simulate_echos(resource, sequence, parameters)
 
-    # allocate output for signal
-    signal = _allocate_output(resource, trajectory, coil_sensitivities)
+    # apply phase encoding (typically only for Cartesian trajectories)
+    phase_encoding!(echos, trajectory, parameters)
 
-    # expand readouts and perform volume integration
-    _simulate!(signal, resource, echos, parameters, trajectory, coil_sensitivities)
+    # compute signal from (phase-encoded) magnetization at echo times
+    signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
 
     return signal
 end
 
-"""
-    _allocate_output(resource, trajectory::AbstractTrajectory, coil_sensitivities)
+### NAIVE BUT GENERIC IMPLEMENTATION ###
 
-Allocate an array to store the output of the Bloch simulations (all readout points,
-integrated over all voxels) to be performed with the `sequence`.
 """
-function _allocate_output(resource, trajectory::AbstractTrajectory, coil_sensitivities)
+    echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
 
-    type = eltype(coil_sensitivities)
+Given the magnetization at echo times in all voxels, allocate memory for the signal
+output on CPU, then loop over all time points `t` and use the (generic) `echos_to_signal!`
+implementation to compute the signal for that time point.
+
+This loop order is not necessarily optimal (and performance may be) across all trajectories and
+computational resources. If a better implementation is available, add new methods to this
+function for those specific combinations of resources and trajectories.
+"""
+function echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+
+    signal = _allocate_signal_output(resource, trajectory, coil_sensitivities)
+
+    if resource == CPU1()
+        for t in 1:nsamples(trajectory)
+            echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+        end
+    elseif resource == CPUThreads()
+        Threads.@threads for t in 1:nsamples(trajectory)
+            # Different threads compute signals at different timepoints t
+            echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+        end
+    elseif resource == CUDALibs()
+
+        # compute nr of threadblocks to be used on GPU
+        nr_blocks = cld(nsamples(trajectory), THREADS_PER_BLOCK)
+
+        # define kernel function to be run by each thread on gpu
+        echos_to_signal_kernel!(signal, echos, parameters, trajectory, coil_sensitivities) = begin
+
+            t = (blockIdx().x - 1) * blockDim().x + threadIdx().x # global time point index
+
+            if t <= nsamples(trajectory)
+                echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+            end
+            return nothing
+        end
+
+        # launch kernels, threads per block hardcoded for now
+        CUDA.@sync begin
+            @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK echos_to_signal_kernel!(signal, echos, parameters, trajectory, coil_sensitivities)
+        end
+    end
+
+    return signal
+end
+
+function echos_to_signal(::CPUProcesses, dechos::DArray, dparameters::DArray, trajectory, dcoil_sensitivities::DArray)
+
+    # # start computing local signal on each worker
+    # dsignal = [@spawnat p echos_to_signal(CPU1(), localpart(dechos), localpart(dparameters), trajectory, localpart(dcoil_sensitivities)) for p in workers()]
+    # # sync
+    # dsignal = DArray(permutedims(dsignal))
+    # # sum results
+    # dsignal = reduce(+,dsignal,dims=2)
+    # # Don't convert to a local vector at this point
+    # return dsignal
+end
+
+"""
+    echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+
+If `to_sample_point` has been defined for the provided trajectory, this (generic but not optimized)
+function computes the signal at timepoint `t`` for all receive coils. It does so by computing
+the readout- and sample indices for the given timepoint `t`, reading in the magnetization at echo
+time of the `r`-th readout, using `to_sample_point` to compute the magnetization at the `s`-th sample
+index, and then it integrates over all voxels (while scaling the magnetization with the proper coil
+sensitivity and proton density).
+
+Better performance can likely be achieved by incorporating more trajectory-specific information
+together with different loop orders.
+"""
+
+@inline function echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+
+    # compute readout and sample indices for time point t
+    readout, sample = _get_readout_and_sample_idx(trajectory, t)
+
+    nv = length(parameters) # nr of voxels
+
+    # accumulator for signal at time index t
+    s = zero(eltype(signal)) # note that s is an SVector of length (# ncoils)
+
+    for voxel = 1:nv
+
+        # load parameters and spatial coordinates
+        p = parameters[voxel]
+        # load coil sensitivity for coil i in this voxel (SVector of length (# coils))
+        c = coil_sensitivities[voxel]
+        # load magnetization in voxel at echo time of the r-th readout
+        m = echos[readout,voxel]
+        # compute magnetization at s-th sample of r-th readout
+        mₛ = to_sample_point(m, trajectory, readout, sample, p)
+        # add magnetization from this voxel, scaled with proton density
+        # and coil sensitivity, to signal accumulator s
+        s += mₛ * (complex(p.ρˣ, p.ρʸ) * c)
+    end
+
+    # store signal for each coil at time t
+    signal[t] = s
+    return nothing
+end
+
+"""
+    _allocate_signal_output(resource, trajectory::AbstractTrajectory, coil_sensitivities)
+
+Allocate an array to store the output of the signal simulation (all readout points,
+integrated over all voxels).
+"""
+function _allocate_signal_output(resource, trajectory::AbstractTrajectory, coil_sensitivities::AbstractVector{T}) where T<:SVector
+
+    ns = nsamples(trajectory)
 
     if resource == CUDALibs()
         # allocate a CuArray of zeros on GPU
-        output = CUDA.zeros(type, nsamples(trajectory))
+        output = CUDA.zeros(T, ns)
     elseif resource == CPUProcesses()
         # allocate a DArray of zeros
-        output = dzeros(type, (nsamples(trajectory),nworkers()), workers(), (1,nworkers()))
-    else
+        nw = nworkers()
+        output = dzeros(T, (ns, nw), workers(), (1, nw))
+    elseif resource ∈ (CPU1(), CPUThreads())
         # allocate an Array of zeros on the local CPU
-        output = zeros(type, nsamples(trajectory))
+        output = zeros(T, ns)
     end
 
     return output
 end
 
+### Convenience functions
 
-### SERIAL FUNCTIONS ###
+# When coil sensitivities are not provided, use a single coil with sensitivity = 1 everywhere
+function simulate_signal(resource, sequence::BlochSimulator, parameters::AbstractArray{<:AbstractTissueParameters{N,T}}, trajectory) where {N,T}
 
-"""
-    _simulate(::CPU1, echos, parameters, trajectory, coil_sensitivities)
-
-Perform signal simulations on CPU. Outer loop over the number of voxels,
-inner loop over time.
-"""
-function _simulate!(signal, ::CPU1, echos, parameters, trajectory, coil_sensitivities)
-
-    @inbounds for v ∈ eachindex(parameters)
-
-        echosᵥ = selectdim(echos, ndims(echos), v) |> vec
-
-        # loop over readouts/echos
-        for readout in eachindex(echosᵥ)
-            expand_readout_and_sample!(signal, readout, echosᵥ[readout],
-                trajectory, parameters[v], coil_sensitivities[v])
-        end
-    end
-
-    return reshape(signal,:,1) # reshape to matrix because DistributedArrays does not work with vectors
-end
-
-# function _simulate!(signal, ::CPU1, echos, parameters, trajectory, coil_sensitivities)
-
-#     for t in 1:nsamples(trajectory)
-
-#         r,s = _get_readout_and_sample_idx(trajectory, t)
-#         nv = length(parameters) # nr of voxels
-
-#         # accumulator for signal at time index t
-#         S = zero(eltype(signal))
-
-#         @inbounds for voxel = 1:nv
-
-#             # load parameters and spatial coordinates
-#             p = parameters[voxel]
-#             C = coil_sensitivities[voxel]
-#             # load magnetization in voxel at echo time of the r-th readout
-#             m = echos[r,voxel]
-#             # compute magnetization at s-th sample of r-th readout
-#             mₛ = to_sample_point(m, trajectory, r, s, p)
-#             # store magnetization from this voxel, scaled with v (~ proton density) and C in accumulator
-#             S += (mₛ * complex(p.ρˣ, p.ρʸ)) * C
-#         end
-
-#         # # store signal at time t
-#         @inbounds signal[t] = S
-#     end
-# end
-
-# # # Given a DistributedArray of echos, compute Mv, Mᵀv or M
-
-# function _simulate!(dsignal, ::CPUProcesses, dechos, dparameters, trajectory, dcoil_sensitivities)
-
-#     dv = distribute(v)
-#     # start computing local signal on each worker
-#     dMv = [@spawnat p _simulate!(localpart(dsignal), CPU1(), localpart(dechos), localpart(dparameters), localpart(dcoordinates), trajectory, localpart(dcoil_sensitivities)) for p in workers()]
-#     # sync
-#     dMv = DArray(permutedims(dMv))
-#     # sum results
-#     dMv = reduce(+,dMv,dims=2) # How exactly does this work?
-#     # Convert to a local vector
-#     # dMv = vec(convert(Array{Complex{Float64},2}, dMv))
-#     dMv = vec(convert(Array, dMv))
-
-#     return dMv
-# end
-
-# # If parameters are provided as a regular array instead of a DistributedArray, distribute them first
-# _simulate!(dsignal::DArray, resource::CPUProcesses, dechos, parameters, coil_sensitivities, trajectory) = _simulate!(doutput, resource, dechos, distribute(parameters), trajectory, distribute(coil_sensitivities))
-
-
-"""
-    _simulate!(signal, ::CUDALibs, sequence, parameters, trajectory, coil_sensitivities)
-
-Run Bloch simulations on a CUDA compatible GPU. Assumes signal, sequence, parameters, trajectory
-and coil_sensitivities are already transferred to the GPU with the `gpu` function. Each thread gets assigned
-a time index and then it loops over the voxels.
-"""
-function _simulate!(signal, ::CUDALibs, echos, parameters, trajectory, coil_sensitivities)
-
-    # threads per block hardcoded for now
-    # compute nr of threadblocks to be used on GPU
-    nr_blocks = cld(nsamples(trajectory), THREADS_PER_BLOCK)
-
-    # launch kernels
-    CUDA.@sync begin
-        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK cuda_simulate_kernel!(signal, echos, parameters, trajectory, coil_sensitivities)
-    end
-
-    return nothing
-end
-
-"""
-    cuda_simulate_kernel!(output, sequence, parameters, trajectory, coil_sensitivities)
-
-Kernel function that gets launched by each thread on the GPU. Each thread performs Bloch simulations in a single voxel.
-"""
-function cuda_simulate_kernel!(signal, echos, parameters, trajectory, coil_sensitivities)
-
-    t = global_id() # global time point index
-
-    if t <= nsamples(trajectory)
-
-        r,s = _get_readout_and_sample_idx(trajectory, t)
-        nv = length(parameters) # nr of voxels
-
-        # accumulator for signal at time index t
-        S = zero(eltype(signal))
-
-        @inbounds for voxel = 1:nv
-
-            # load parameters and spatial coordinates
-            p = parameters[voxel]
-            C = coil_sensitivities[voxel]
-            # load magnetization in voxel at echo time of the r-th readout
-            m = echos[r,voxel]
-            # compute magnetization at s-th sample of r-th readout
-            mₛ = to_sample_point(m, trajectory, r, s, p)
-            # store magnetization from this voxel, scaled with v (~ proton density) and C in accumulator
-            S += (mₛ * complex(p.ρˣ, p.ρʸ)) * C
-        end
-
-        # # store signal at time t
-        @inbounds signal[t] = S
-
-    end
-
-    nothing
-end
-
-# conventient function to simualte without coil sensitivities
-function simulate(resource, sequence, parameters, trajectory)
-    
     # use one coil with sensitivity 1 everywhere
-    coil_sensitivities = SVector{1}.(complex.(ones(size(parameters))))
-    
+    coil_sensitivities = ones(Complex{T},length(parameters),1)
+
     # send to GPU if necessary
     if resource == CUDALibs()
         coil_sensitivities = gpu(coil_sensitivities)
+    elseif resource == CPUProcesses()
+        coil_sensitivities = distribute(coil_sensitivities)
     end
-    
-    # simulate signal and use only because there's only one coil anyway 
-    signal = simulate(resource, sequence, parameters, trajectory, coil_sensitivities) .|> only
+
+    # simulate signal and use only because there's only one coil anyway
+    signal = simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
 
     return signal
 end

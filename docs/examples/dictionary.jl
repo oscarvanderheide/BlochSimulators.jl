@@ -32,15 +32,15 @@ parameters = filter(p -> (p.T₁ > p.T₂), parameters); # remove pairs with T�
 # 
 # First, we simply simulate a dictionary using single-threaded CPU mode:
 
-@time dictionary = simulate(CPU1(), sequence, parameters);
-@time dictionary = simulate(CPU1(), sequence, parameters);
+@time dictionary = simulate_echos(CPU1(), sequence, parameters);
+@time dictionary = simulate_echos(CPU1(), sequence, parameters);
 
 # To use multiple threads, Julia must be started with the `--threads=auto`
 # flag (or some integer instead of `auto`). Then, we can simulate in a 
 # multi-threaded fashion with the following syntax:
 
-@time dictionary = simulate(CPUThreads(), sequence, parameters);
-@time dictionary = simulate(CPUThreads(), sequence, parameters);
+@time dictionary = simulate_echos(CPUThreads(), sequence, parameters);
+@time dictionary = simulate_echos(CPUThreads(), sequence, parameters);
 
 # For distributed CPU mode, use the Distribute packages (ships with Julia)
 # to add workers first
@@ -58,8 +58,8 @@ addprocs([("12.345.67.89", 4)], exeflags="--project=.")
 # and then start a distributed dictionary generation with:
 @everywhere using BlochSimulators
 
-@time dictionary = simulate(CPUProcesses(), sequence, parameters);
-@time dictionary = simulate(CPUProcesses(), sequence, parameters);
+@time dictionary = simulate_echos(CPUProcesses(), sequence, parameters);
+@time dictionary = simulate_echos(CPUProcesses(), sequence, parameters);
 
 # To perform simulations on GPU, we first convert the sequence and parameters
 # to single precision and then send them to the gpu
@@ -67,7 +67,7 @@ addprocs([("12.345.67.89", 4)], exeflags="--project=.")
 cu_sequence = sequence |> f32 |> gpu;
 cu_parameters = parameters |> f32 |> gpu;
 
-@time dictionary = simulate(CUDALibs(), cu_sequence, cu_parameters);
-@time dictionary = simulate(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
 
 

@@ -23,7 +23,7 @@ end
 output_dimensions(s::MultiShot) = s.nshots * length(s.TE)
 output_eltype(s::MultiShot{T,nTE}) where {T,nTE} = Complex{T}
 
-function simulate!(echos, sequence::MultiShot, m::Isochromat, parameters::AbstractTissueParameters)
+function simulate_echos!(echos, sequence::MultiShot, m::Isochromat, parameters::AbstractTissueParameters)
 
     T₁ = parameters.T₁
     T₂ = parameters.T₂
@@ -82,6 +82,6 @@ parameters = T₁T₂B₀(1.0,0.1,20.0)
 echos = simulate(CPU1(), sequence, [parameters])
 
 pp = [T₁T₂B₀(1.0,0.1,20.0) for i = 1:100000];
-echos = simulate(CUDALibs(), gpu(f32(sequence)), gpu(f32(pp[1:10])))
+echos = simulate_Echos(CUDALibs(), gpu(f32(sequence)), gpu(f32(pp[1:10])))
 
-echos = simulate(CUDALibs(), gpu(f32(sequence)), gpu(f32(pp)))
+echos = simulate_echos(CUDALibs(), gpu(f32(sequence)), gpu(f32(pp)))

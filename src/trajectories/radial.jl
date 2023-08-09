@@ -3,33 +3,33 @@
 ### Type definition
 
 """
-    RadialTrajectory{T,I,J,U,V} <: SpokesTrajectory
+    RadialTrajectory{T,I,U,V} <: SpokesTrajectory
 
-Struct that is used to implement a typical radial gradient trajectory. 
-The trajectory can is described in a compact fashion by only storing 
-the starting position in k-space (`k_start_readout`) for each readout 
+Struct that is used to implement a typical radial gradient trajectory.
+The trajectory can is described in a compact fashion by only storing
+the starting position in k-space (`k_start_readout`) for each readout
 as well as the step in k-space per readout point `Δk_adc`.
 
 Note that CartesianTrajectory and RadialTrajectory are essentially the same in when
 using when using this compact description. A SpokesTrajectory struct is therefore
-defined as a supertype of both and methods are defined for SpokesTrajectory instead 
+defined as a supertype of both and methods are defined for SpokesTrajectory instead
 to avoid code repetition.
 
-The type parameters are intentionally left vague. The `J`, for example, may be an 
-integer for sequences where each readout has the same number of samples, but for 
+The type parameters are intentionally left vague. The `J`, for example, may be an
+integer for sequences where each readout has the same number of samples, but for
 sequences with different numbers of samples per readout it may be a vector of integers.
 
 # Fields
 - `nreadouts::I`: The total number of readouts for this trajectory
-- `nsamplesperreadout::J`: The total number of samples per readout
+- `nsamplesperreadout::I`: The total number of samples per readout
 - `Δt::T`: Time between sample points
 - `k_start_readout::U`: Starting position in k-space for each readout
 - `Δk_adc::U`: k-space step Δk between each readout
 - `φ::V`: Radial angle for each readout
 """
-struct RadialTrajectory{T,I,J,U,V} <: SpokesTrajectory
+struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory
     nreadouts::I
-    nsamplesperreadout::J
+    nsamplesperreadout::I
     Δt::T # time between sample points
     k_start_readout::U # starting position in k-space for each readout
     Δk_adc::U # Δk during ADC for each readout
@@ -43,7 +43,31 @@ export RadialTrajectory
 
 ### Interface requirements
 
-# see src/trajectories/cartesian.jl 
+@inline function to_sample_point(mₑ, trajectory::RadialTrajectory, readout_idx, sample_idx, p)
+    
+    # Note that m has already been phase-encoded
+    
+    # Read in constants
+    R₂ = inv(p.T₂)
+    ns = nsamplesperreadout(trajectory, readout_idx)
+    Δt = trajectory.Δt
+    @inbounds k⁰ = trajectory.k_start_readout[readout_idx]
+    @inbounds Δk = trajectory.Δk_adc[readout_idx]
+    x,y = p.x, p.y
+
+    # There are ns samples per readout, echo time is assumed to occur 
+    # at index (ns÷2)+1. Now compute sample index relative to the echo time
+    s = sample_idx - ((ns÷2)+1)
+
+    # Apply readout gradient, T₂ decay and B₀ rotation
+    E₂ = exp(-Δt*s*R₂)
+    θ = Δk.re * x + Δk.im * y 
+    hasB₀(p) && (θ += π*p.B₀*Δt*2)
+    E₂eⁱᶿ = E₂ * exp(im*s*θ)
+    mₛ = E₂eⁱᶿ * mₑ
+
+    return mₛ
+end
 
 ### Utility functions (not used in signal simulations)
 
@@ -86,3 +110,17 @@ function add_gradient_delay!(tr::RadialTrajectory, S)
 end
 
 add_gradient_delay(tr::RadialTrajectory, S) = add_gradient_delay!(deepcopy(tr), S)
+
+"""
+    kspace_coordinates(tr::RadialTrajectory)
+
+Return matrix (nrsamplesperreadout, nrreadouts) with kspace coordinates for the trajectory. Needed for nuFFT reconstructions.
+"""
+function kspace_coordinates(tr::RadialTrajectory)
+
+    nr = tr.nreadouts
+    ns = tr.nsamplesperreadout
+    k = [tr.k_start_readout[r] + (s-1)*tr.Δk_adc[r] for s in 1:ns, r in 1:nr]
+
+    return k
+end

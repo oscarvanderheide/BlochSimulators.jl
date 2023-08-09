@@ -1,6 +1,3 @@
-
-@inline global_id() = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-
 # Convert non-isbits fields of structs (e.g. sequences, trajectories)
 # to CuArrays.
 # Inspired by KomaMRI.jl (KomaMRI.jl/src/simulation/GPUFunctions.jl),

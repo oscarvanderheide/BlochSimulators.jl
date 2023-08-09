@@ -7,6 +7,7 @@ using LinearAlgebra
 using StaticArrays
 using ComputationalResources
 using Distributed
+using DistributedArrays
 
 # test some individual functions in BlochSimulators
 @testset "Test operator functions for isochromat model" begin
@@ -262,7 +263,7 @@ end
     @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
     @test gpu(t).Δt == t.Δt
     @test gpu(t).k_start_readout == CuArray(t.k_start_readout)
-    @test gpu(t).Δk_adc == CuArray(t.Δk_adc)
+    @test gpu(t).Δk_adc == t.Δk_adc
     @test gpu(t).py == CuArray(t.py)
 
     # test AbstractTissueParameters
@@ -275,27 +276,32 @@ end
 @testset "Test dictionary generation on different computational resources" begin
 
     # Simulate dictionary with CPU1()
-    nTR = 100
+    nTR = 1000
     sequence = FISP(nTR)
+    sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂(rand(), rand()) for _ = 1:1000]
 
-    d1 = simulate(CPU1(), sequence, parameters)
+    echos_cpu1 = simulate_echos(CPU1(), sequence, parameters)
 
     # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
-    d2 = simulate(CPUThreads(), sequence, parameters)
-    @test d1 ≈ d2
+    echos_cputhreads = simulate_echos(CPUThreads(), sequence, parameters)
+    @test echos_cpu1 ≈ echos_cputhreads
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
     # and check if outcome is the same
-    addprocs(2, exeflags="--project=.")
-    @everywhere using BlochSimulators
-    d3 = simulate(CPUProcesses(), sequence, parameters) |> collect
-    @test d1 ≈ d3
+    if workers() == [1] 
+        addprocs(2, exeflags="--project=.")
+        @everywhere using BlochSimulators, ComputationalResources
+    end
+    
+    echos_cpuprocesses = simulate_echos(CPUProcesses(), sequence, parameters)
+
+    @test echos_cpu1 ≈ convert(Array,echos_cpuprocesses)
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
-        d4 = simulate(CUDALibs(), gpu(sequence), gpu(parameters)) |> collect
-        @test d1 ≈ d4
+        echos_cudalibs = simulate_echos(CUDALibs(), gpu(sequence), gpu(parameters)) |> collect
+        @test echos_cpu1 ≈ echos_cudalibs
     end
 
 end
@@ -307,13 +313,13 @@ end
     sequence = FISP(nTR)
     parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, 0.0, 0.0)]
 
-    d = simulate(CPU1(), sequence, parameters)
+    d = simulate_echos(CPU1(), sequence, parameters)
 
     # Use some trajectory to simulate signal
     nr, ns = 100, 40
     trajectory = CartesianTrajectory(nr,ns)
 
-    s = simulate(CPU1(), sequence, parameters, trajectory)
+    s = simulate_signal(CPU1(), sequence, parameters, trajectory)
 
     # Because this voxel has x = y = 0, a gradient trajectory
     # should not influence it and for one voxel there's no
@@ -322,7 +328,7 @@ end
 
     # If we now simulate with a voxel with x and y non-zero, then
     # at echo time the magnetization should be the same in abs
-    s2 = simulate(CPU1(), sequence, [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, rand(), rand())], trajectory)
+    s2 = simulate_signal(CPU1(), sequence, [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, rand(), rand())], trajectory)
 
     @test abs.(d) ≈ abs.(s2[(ns÷2)+1:ns:end])
 
@@ -341,19 +347,18 @@ end
     Δkʸ = 2π / fovy;
     py = collect(-50:49)
     k0 = [(-ns/2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr];
-    Δk = [Δkˣ + 0.0im for r in 1:nr];
 
     # assemble Cartesian trajectory
-    cartesian = CartesianTrajectory(nr, ns, Δt, k0, Δk, py)
+    cartesian = CartesianTrajectory(nr, ns, Δt, k0, Δkˣ, py)
 
     # test whether getindex method to reduce sequence length works
-    @test cartesian[1:50].k_start_readout == CartesianTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], py[1:50]).k_start_readout
-    @test cartesian[1:50].Δk_adc == CartesianTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], py[1:50]).Δk_adc
-    @test cartesian[1:50].py == CartesianTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], py[1:50]).py
+    @test cartesian[1:50].k_start_readout == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50]).k_start_readout
+    @test cartesian[1:50].Δk_adc == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50]).Δk_adc
+    @test cartesian[1:50].py == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50]).py
 
-    @test sampling_mask(cartesian)[10] == CartesianIndices((1:ns, 10:10))
+    @test BlochSimulators.sampling_mask(cartesian)[10] == CartesianIndices((1:ns, 10:10))
 
-    @test kspace_coordinates(cartesian)[:,1] = k0[1] .+ (-ns÷2):(ns÷2-1) .* Δk[1]
+    @test BlochSimulators.kspace_coordinates(cartesian)[:,1] = k0[1] .+ collect(((-ns÷2):(ns÷2-1)) .* Δkˣ)
 end
 
 @testset "Tests for RadialTrajectory" begin
@@ -378,7 +383,43 @@ end
     # test gradient delay for radial
     S = rand(2,2)
     radial_delay = deepcopy(radial)
-    add_gradient_delay!(radial_delay, S)
-    @test all(radial_delay.k_start_readout .== add_gradient_delay(radial, S).k_start_readout)
+    BlochSimulators.add_gradient_delay!(radial_delay, S)
+    @test all(radial_delay.k_start_readout .== BlochSimulators.add_gradient_delay(radial, S).k_start_readout)
+
+end
+
+@testset "Test signal simulation on different computational resources" begin
+
+    # Simulate signal with CPU1() as reference
+    nTR = 1000
+    nvoxels = 1000
+    sequence = FISP(nTR)
+    sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
+    parameters = [T₁T₂ρˣρʸxy(1.0,0.1,rand(4)...) for _ = 1:nvoxels]
+
+    trajectory = CartesianTrajectory(nTR, 100)
+    coil_sensitivities = rand(SVector{2,ComplexF64}, nvoxels)
+
+    signal_cpu = simulate_signal(CPU1(), sequence, parameters, trajectory, coil_sensitivities)
+
+    # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
+    signal_cputhreads = simulate_signal(CPUThreads(), sequence, parameters, trajectory, coil_sensitivities)
+    @test signal_cpu ≈ signal_cputhreads
+
+    # Now add workers and simulate with CPUProcesses() (distributed CPU)
+    # and check if outcome is the same
+    if workers() == [1] 
+        addprocs(2, exeflags="--project=.")
+        @everywhere using BlochSimulators, ComputationalResources, DistributedArrays
+    end
+
+    signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coil_sensitivities))
+    @test signal_cpu1 ≈ convert(Array,signal_cpuprocesses)
+
+    if CUDA.functional()
+        # Simulate with CUDALibs() (GPU) and check if outcome is the same
+        signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coil_sensitivities)) |> collect
+        @test signal_cpu ≈ signal_cudalibs
+    end
 
 end

@@ -10,7 +10,24 @@ abstract type AbstractTrajectory end
 
 export AbstractTrajectory
 
-### Functions that must be implemented for each trajectory
+### Functions that must be implemented for each trajectory.
+
+"""
+    phase_encoding!(echos, trajectory::AbstractTrajectory, parameters)
+
+For each `::AbstractTrajectory`, a method should be added to this function if
+it does any kind of phase encoding (so far Cartesian only).
+"""
+function phase_encoding!(echos, trajectory::AbstractTrajectory, parameters)
+    println("No phase encoding for this trajectory")
+    nothing
+end
+
+function phase_encoding!(echos::DArray, trajectory::AbstractTrajectory, parameters::DArray)
+    @warn "TODO"
+    nothing
+end
+
 
 """
     nreadouts(::AbstractTrajectory)
@@ -32,29 +49,6 @@ specifies how many samples in total are acquired during the trajectory.
 function nsamplesperreadout(::AbstractTrajectory, readout_idx)
     @warn "Must implement nsamplesperreadout"
 end
-
-
-"""
-    expand_readout_and_sample!(output, readout_idx, m, trajectory::AbstractTrajectory, parameters, coil_sensitivities)
-
-For each ::AbstractTrajectory, a method should be added to this function that,
-given the magnetization `m` at the echo time of the readout with index `readout_idx`, 
-it computes the magnetization at other readout points (applying spatial encoding gradients, 
-T₂ decay, B₀ rotation, etc...) and stores it into `output`.
-
-Arguments
-- `output`:         Pre-allocated output array (of `typeof(coil_sensitivities)`) in which the signal is stored.
-- `readout_idx`:    Index that corresponds to the current readout.
-- `m`:              Magnetization at echo time for the current readout (without spatial encoding gradients applied).
-- `trajectory`:     Trajectory struct containing fields that are used to compute the magnetization at other readout times,
-                    including the effects of spatial encoding gradients.
-- `parameters`:     Tissue parameters of current voxel, including spatial coordinates.
-- `coil_sensitivities`: Coil sensitivities in current voxel (stored as `SVector`).
-"""
-function expand_readout_and_sample!(output, readout_idx, m, trajectory::AbstractTrajectory, parameters, coil_sensitivities)
-    @warn "Must implement expand_readout_and_sample!"
-end
-
 
 """
     to_sample_point(m, trajectory, readout_idx, sample_idx, parameters)
