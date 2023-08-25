@@ -112,7 +112,7 @@ non-allocating.
     to the simulation (e.g. `T₁T₂`)
 
 """
-function simulate!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
+function simulate_echos!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
     @warn "Must implement simulate!"
 end
 

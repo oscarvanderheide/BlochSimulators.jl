@@ -40,7 +40,7 @@ output_dimensions(sequence::pSSFP) = length(sequence.RF_train)
 output_eltype(sequence::pSSFP) = eltype(sequence.RF_train)
 
 # Sequence implementation
-@inline function simulate!(echos, sequence::pSSFP, m, p::AbstractTissueParameters)
+@inline function simulate_echos!(echos, sequence::pSSFP, m, p::AbstractTissueParameters)
 
     T₁,T₂ = p.T₁, p.T₂
 

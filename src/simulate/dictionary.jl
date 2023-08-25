@@ -70,7 +70,7 @@ function _simulate!(output, ::CPU1, sequence, parameters)
 
     # loop over voxels
     for voxel ∈ eachindex(parameters)
-        simulate!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
+        simulate_echos!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
     end
 
     return nothing
@@ -92,7 +92,7 @@ function _simulate!(output, ::CPUThreads, sequence, parameters)
         # initialize state that gets updated during time integration
         state = initialize_states(CPUThreads(), sequence)
 
-        simulate!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
+        simulate_echos!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
     end
 
     return nothing
@@ -148,7 +148,7 @@ function cuda_simulate_kernel!(output, sequence, parameters)
 
     # perform actual simulations
     if voxel <= length(parameters)
-        simulate!(view(output,:,voxel), sequence, states, parameters[voxel])
+        simulate_echos!(view(output,:,voxel), sequence, states, parameters[voxel])
     end
 
     return nothing
