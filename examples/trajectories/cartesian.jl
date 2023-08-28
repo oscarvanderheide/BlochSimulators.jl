@@ -54,6 +54,100 @@ end
 
 export CartesianTrajectory
 
+"""
+    echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+
+Arguments
+- `echos`:          Matrix{Complex} of size (# readouts, # voxels) with phase-encoded
+                    magnetization at echo times.
+- `parameters`:     Tissue parameters of all voxels, including spatial coordinates.
+- `trajectory`:     Cartesian trajectory struct.
+- `parameters`:     Matrix{Complex} of size (# voxels, # coils) with coil sensitivities.
+
+Output:
+- `signal`: Vector of length (# coils) with each element a Matrix{Complex}
+        of size (# readouts, # samples per readout)
+
+Description:
+
+As noted in the description of the simulate_signal function (see `src/simulate/signal.jl`),
+we simulate the MR signal at timepoint `t` from coil `i` as:
+signalᵢ[t] = sum(m[t,v] * cᵢ[v] * ρ[v]  for v in 1:(# voxels)),
+where `cᵢ`is the coil sensitivity profile of coil `i`, `ρ` is the proton density
+map and `m` the matrix with the magnetization at all timepoints for each voxel
+obtained through Bloch simulations.
+
+The output (signalᵢ) for each coil is in principle a `Vector{Complex}`` of
+length (# samples per readout) * (# readouts). If we reshape the output into a
+`Matrix{Complex}` of size (# samples per readout, # readouts) instead, and do
+something similar for `m`, then the signal value associated with the s-th sample
+point of the r-th readout can be expressed as
+signalᵢ[r,s] = sum( m[r,s,v]] * cᵢ[v] * ρ[v]  for v in 1:(# voxels)).
+
+The problem here is that we typically cannot store the full m. Instead, we compute the
+magnetization at echo times only. The reason is that, if mᵣ is the magnetization at
+the r-th echo time in some voxel, and E = exp(-Δt*R₂[v]) * exp(im*(Δkₓ*x[v]))
+is the change per sample point (WHICH FOR CARTESIAN SEQUENCES IS THE SAME
+FOR ALL READOUTS AND SAMPLES), then the magnetization at the s-th sample
+relative the the echo time can can be computed as mₛ = mᵣ * E[v]^s
+
+Therefore we can write
+
+signalⱼ[r,s] = sum( echos[r,v] * E[v]^s * ρ[v] * cⱼ[v] for v in 1:(# voxels))
+signalⱼ[r,s] = echos[r,:] * (E.^s .* ρ .* cⱼ)
+
+Because the (E.^s .* ρ .* cⱼ)-part is the same for all readouts, we can simply
+perform this computation for all readouts simultaneously as
+signalⱼ[:,s] = echos * (E.^s .* ρ .* cⱼ)
+
+If we define the matrix Eˢ as E .^ (-(ns÷2):(ns÷2)-1), then we can do the computation
+for all different sample points at the same time as well using a single matrix-matrix
+multiplication:
+signalⱼ = echos * (Eˢ .* (ρ .* cⱼ))
+
+For the final output, we need to do this for each coil j.
+
+Note that this implementation relies entirely on vectorized code
+and works on both CPU and GPU. The matrix-matrix multiplications
+are - I think - already multi-threaded so a separate multi-threaded
+implementation is not needed.
+"""
+function echos_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, echos, parameters, trajectory::CartesianTrajectory, coil_sensitivities)
+
+    # Sanity checks
+    @assert size(echos) == (trajectory.nreadouts, length(parameters))
+    @assert size(coil_sensitivities,1) == length(parameters)
+
+    # Load constants
+    # Maybe should start using StructArrays to get rid of the map stuff
+    T₂  = map(p->p.T₂, parameters) |> vec
+    ρ  = map(p->complex(p.ρˣ,p.ρʸ), parameters) |> vec
+    x  = map(p->p.x, parameters) |> vec
+    Δt = trajectory.Δt
+    Δkₓ = trajectory.Δk_adc
+    ns = trajectory.nsamplesperreadout
+    nr = trajectory.nreadouts
+
+    # Dynamics during readout (gradient encoding, T2 decay, B0 rotation)
+    # are different per voxel but the same for each readout and sample point
+    # Pre-compute vector with dynamic change from one sample point to the next
+    E = @. exp(-Δt*inv(T₂)) * exp(im*(Δkₓ*x)) # todo: B0
+    # To compute signal at all sample points with one matrix-matrix multiplication,
+    # we pre-compute a readout_dynamics matrix instead
+    Eˢ = @. E^(-(ns÷2):(ns÷2)-1)'
+    # Perform main computation
+    signal = map(eachcol(coil_sensitivities)) do c
+        echos * (Eˢ .* (ρ .* c))
+    end
+
+    # Final checks
+    @assert length(signal) == size(coil_sensitivities,2)
+    @assert size(signal[1]) == (nr,ns)
+
+    return signal
+end
+
+
 ### Interface requirements
 
 @inline nreadouts(t::SpokesTrajectory) = t.nreadouts
