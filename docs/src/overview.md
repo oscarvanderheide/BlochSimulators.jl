@@ -30,11 +30,11 @@ Whereas other Bloch simulation toolboxes typically provide a single, generic sim
 
 A second important design philosophy is that, when one intends to simulate MR signal for some numerical phantom, first the magnetization ``m`` at echo times in all voxels is computed (without taking into account the effects of the gradient trajectory). If ``m_e`` is the transverse magnetization in one voxel at some echo time of the pulse sequence, then the transverse magnetization at the ``j``-th sample point of that readout relative to the echo time can be computed analytically as
 
-``m_s = m_e \left( e^{-2\pi i \Delta B_0 \Delta t}e^{-\Delta t / T_2})^j``,
+``m_s = m_e \left(e^{-\frac{\Delta t}{T_2}} e^{-2\pi i \Delta B_0}\right)^j e^{-2\pi i \vec{k}(t) \cdot \vec{r}}``,
 
 where ``\Delta t`` is the time between sample points of the readout.
 
-Given ``m`` at echo times, the signal ``s`` is computed by _expanding_ the magnetization to all sample times and evaluating the discrete sum while taking into account the gradient trajectory (and coil sensitivities).
+Given ``m`` at echo times, the signal ``s`` is thus computed by _expanding_ the magnetization to all sample times and evaluating the discrete sum while taking into account the gradient trajectory (and coil sensitivities).
 
 Note that the (discretized) signal equation closely resembles a Discrete Fourier Transform. In many MRI applications, the Fast Fourier Transform (FFT) is used to transform back-and-forth between the image domain and the k-space domain. In BlochSimulators, we intentionally do not rely on the FFT since it does not allow to take into account dynamical behaviour during readouts (e.g. ``T_2`` decay and/or ``\Delta B_0``-induced rotations).
 
@@ -58,7 +58,7 @@ To compute the MR signal ``s`` given the magnetization at echo times in all voxe
 
 In order to evaluate the above expression, information from the gradient trajectory (i.e. ``k(t)``) is required. For each different type of trajectory, a new struct (subtype of `AbstractTrajectory`) must be introduced with fields that describe that particular gradient trajectory. A new method must then be added to the `to_sample_point` function which is used to compute
 
-m(\vec{r}_j,t)e^{-2\pi i \vec{k}(t)\cdot \vec{r}_j}
+``m(\vec{r}_j,t)e^{-2\pi i \vec{k}(t)\cdot \vec{r}_j}``
 
 for sample points other than the echo times. See [`src/trajectories/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/_interface.jl) for more details. Example implementations for [Cartesian](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/cartsian.jl) and [radial](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/radial.jl) trajectories are provided.
 
@@ -70,7 +70,9 @@ Alternatively, the signal can be computed with the `simulate` function as
 
 `signal = simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)`.
 
-We note that the implementation of `to_sample_point` for a new trajectory should be type-stable and non-allocating. In that case, the signal computation will likely run on different computational resources following the `echos_to_signal` implementation. However, the approach taken in the default `echos_to_signal` method (i.e. let each time point be a separate compute task) may not always be optimal from a runtime performance. If more trajectory-specific information can be exploited, a new method, more optimal, method may be added for this trajectory to `echos_to_signal` instead.
+We note that the implementation of `to_sample_point` for a new trajectory should be type-stable and non-allocating. In that case, the signal computation will likely run on different computational resources following the `echos_to_signal` implementation. In the default implementation `echos_to_signal`, different compute threads (i.e. when running in multi-threaded mode or in GPU) are assigned to different sample times. The benefit of this approach is that no communication between threads is required. However, from a memory-access point-of-view this approach may not necessarily be optimal. The optimal approach may depend on the actual gradient trajectory and computational resource. If more "optimal" implementations are discovered, methods may be be added `echos_to_signal` to use more optimized implementations for specific combinations of trajectories and resources.
+
+![BlochSimulators.jl graphical overview ](./overview.pdf)
 
 ## GPU Compatibility
 
@@ -84,8 +86,9 @@ For example, given some `sequence`, `gpu(f32(sequence))` will recursively conver
 
 ## Todo
 
-- For 3D applications, storing the magnetization at echo times for all voxels may not be feasible. The computations can be performed in batches though but is currently not implemented.
+- For 3D applications, storing the magnetization at echo times for all voxels may not be feasible. The computations can be performed in batches though but such batching is currently not implemented.
 - Add diffusion operators to both the isochromat and extended phase graph models.
 - Add magnetization transfer model.
 - Add spiral and EPI trajectories.
-- Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueParameters}`. Perhaps separate the spatial coordinates from the tissue parameters.
+- Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueParameters}`. 
+- Perhaps separate the spatial coordinates from the tissue parameters.

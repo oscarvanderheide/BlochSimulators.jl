@@ -23,12 +23,6 @@ function phase_encoding!(echos, trajectory::AbstractTrajectory, parameters)
     nothing
 end
 
-function phase_encoding!(echos::DArray, trajectory::AbstractTrajectory, parameters::DArray)
-    @warn "TODO"
-    nothing
-end
-
-
 """
     nreadouts(::AbstractTrajectory)
 

@@ -9,7 +9,7 @@ where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`,
 in voxel `j` obtained through Bloch simulations.
 
 # Arguments
-- `resource::ComputationalResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
+- `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
 - `parameters::AbstractVector{<:AbstractTissueParameters}`: Vector with tissue parameters for each voxel
 - `trajectory::AbstractTrajectory`: Custom trajectory struct
@@ -19,12 +19,7 @@ in voxel `j` obtained through Bloch simulations.
 - `signal::Vector{<:SVector{ncoils}}`: Simulated MR signal for the `sequence` and `trajectory`.
 At each timepoint, the signal for each of the `ncoils` is stored.
 """
-function simulate_signal(
-    resource::AbstractResource,
-    sequence::BlochSimulator,
-    parameters::AbstractArray{<:AbstractTissueParameters},
-    trajectory::AbstractTrajectory,
-    coil_sensitivities::AbstractVector{<:SVector})
+function simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
 
     @assert length(parameters) == size(coil_sensitivities,1)
     # check that proton density is part of parameters
@@ -99,14 +94,17 @@ end
 
 function echos_to_signal(::CPUProcesses, dechos::DArray, dparameters::DArray, trajectory, dcoil_sensitivities::DArray)
 
-    # # start computing local signal on each worker
-    # dsignal = [@spawnat p echos_to_signal(CPU1(), localpart(dechos), localpart(dparameters), trajectory, localpart(dcoil_sensitivities)) for p in workers()]
-    # # sync
-    # dsignal = DArray(permutedims(dsignal))
-    # # sum results
-    # dsignal = reduce(+,dsignal,dims=2)
-    # # Don't convert to a local vector at this point
-    # return dsignal
+    # for some reason, assembling DArrays does not work with vectors but it does
+    # with matrices
+    vec_to_mat(x::AbstractVector) = reshape(x,length(x),1)
+    # start computing local signal on each worker
+    dsignal = @sync [@spawnat p vec_to_mat(echos_to_signal(CPU1(), localpart(dechos), localpart(dparameters), trajectory, localpart(dcoil_sensitivities))) for p in workers()]
+    # assemble new DArray from the arrays on each worker
+    dsignal = DArray(permutedims(dsignal))
+    # sum results
+    dsignal = reduce(+,dsignal,dims=2)
+    # Don't convert to a local vector at this point
+    return dsignal
 end
 
 """
@@ -184,7 +182,7 @@ end
 function simulate_signal(resource, sequence::BlochSimulator, parameters::AbstractArray{<:AbstractTissueParameters{N,T}}, trajectory) where {N,T}
 
     # use one coil with sensitivity 1 everywhere
-    coil_sensitivities = ones(Complex{T},length(parameters),1)
+    coil_sensitivities = ones(Complex{T},length(parameters)) .|> SVector
 
     # send to GPU if necessary
     if resource == CUDALibs()

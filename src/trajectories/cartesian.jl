@@ -64,10 +64,24 @@ function phase_encoding!(echos, trajectory::CartesianTrajectory, parameters)
     return nothing
 end
 
+# perhaps do this with metaprogramming instead (iteratate over all subtypes of AbstractTrajectory)
+function phase_encoding!(echos::DArray, trajectory::CartesianTrajectory, parameters::DArray)
+
+    @sync for p in workers()
+        @async begin
+            @spawnat p phase_encoding!(localpart(echos), trajectory, localpart(parameters))
+        end
+    end
+
+    return nothing
+end
+
+
+
 @inline function to_sample_point(mₑ, trajectory::CartesianTrajectory, readout_idx, sample_idx, p)
-    
+
     # Note that m has already been phase-encoded
-    
+
     # Read in constants
     R₂ = inv(p.T₂)
     ns = nsamplesperreadout(trajectory, readout_idx)
@@ -76,7 +90,7 @@ end
     Δkₓ = trajectory.Δk_adc
     x = p.x
 
-    # There are ns samples per readout, echo time is assumed to occur 
+    # There are ns samples per readout, echo time is assumed to occur
     # at index (ns÷2)+1. Now compute sample index relative to the echo time
     s = sample_idx - ((ns÷2)+1)
 

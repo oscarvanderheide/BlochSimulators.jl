@@ -83,29 +83,29 @@ using BlochSimulators.CUDA
 
 resource = CUDALibs()
 # compute magnetization at echo times in all voxels
-CUDA.@time echos = simulate(resource, sequence, parameters);
+CUDA.@time echos = simulate_echos(resource, sequence, parameters);
 # apply phase encoding (typically only for Cartesian trajectories)
 CUDA.@time phase_encoding!(echos, trajectory, parameters)
 # compute signal from (phase-encoded) magnetization at echo times
 CUDA.@time signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities);
 
-# signal = collect(signal)
+signal = collect(signal)
 
-# # Let's look at fft images of the signals from the two different coils
-# signal₁ = first.(signal)
-# signal₂ = last.(signal)
+# Let's look at fft images of the signals from the two different coils
+signal₁ = first.(signal)
+signal₂ = last.(signal)
 
 
-# @. signal₁[2:2:end] *= -1 # correct for phase cycling
-# @. signal₂[2:2:end] *= -1 # correct for phase cycling
+@. signal₁[2:2:end] *= -1 # correct for phase cycling
+@. signal₂[2:2:end] *= -1 # correct for phase cycling
 
-# fft_image₁ = rot180(ifft(reshape(signal₁,N,N))) # rot180 instead of fftshifts
-# fft_image₂ = rot180(ifft(reshape(signal₂,N,N))) # rot180 instead of fftshifts
+fft_image₁ = rot180(ifft(reshape(signal₁,N,N))) # rot180 instead of fftshifts
+fft_image₂ = rot180(ifft(reshape(signal₂,N,N))) # rot180 instead of fftshifts
 
-# figure()
-# subplot(1,3,1); imshow(abs.(ρ)); title("Ground truth \n proton density")
-# subplot(1,3,2); imshow(abs.(fft_image₁)); title("fft-image coil 1")
-# subplot(1,3,3); imshow(abs.(fft_image₂)); title("fft-image coil 2")
+figure()
+subplot(1,3,1); imshow(abs.(ρ)); title("Ground truth \n proton density")
+subplot(1,3,2); imshow(abs.(fft_image₁)); title("fft-image coil 1")
+subplot(1,3,3); imshow(abs.(fft_image₂)); title("fft-image coil 2")
 
-# # Note the banding due to off-resonance
+# Note the banding due to off-resonance
 

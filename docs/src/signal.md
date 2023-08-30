@@ -1,16 +1,25 @@
 # Simulate MR Signal
 
+````julia
+using Pkg; Pkg.activate("docs")
+````
+
 In this example we are going to generate a phantom
 and simulate the signal for a gradient-balanced sequence
 with a Cartesian gradient trajectory
 
 ````julia
+# stuf
 using Revise
 using BlochSimulators
 using ComputationalResources
 using StaticArrays
 using LinearAlgebra
+````
+
 using PyPlot
+
+````julia
 using FFTW
 import ImagePhantoms
 ````
@@ -45,13 +54,13 @@ a TR of 10 ms and 0-π phase cycling. See `src/sequences/pssfp.jl` for the
 sequence description and the fields for which values must be provided
 
 ````julia
-nTR = N
-RF_train = complex.(fill(40.0, nTR)) # constant flip angle train
+nTR = 5N
+RF_train = complex.(fill(90.0, nTR)) # constant flip angle train
 RF_train[2:2:end] .*= -1 # 0-π phase cycling
 nRF = 25 # nr of RF discretization points
 durRF = 0.001 # duration of RF excitation
 TR = 0.010 # repetition time
-TI = 10.0 # long inversion delay -> no inversion
+TI = 20.0 # long inversion delay -> no inversion
 gaussian = [exp(-(i-(nRF/2))^2 * inv(nRF)) for i ∈ 1:nRF] # RF excitation waveform
 γΔtRF = (π/180) * normalize(gaussian, 1) |> SVector{nRF} # normalize to flip angle of 1 degree
 Δt = (ex=durRF/nRF, inv = TI, pr = (TR - durRF)/2); # time intervals during TR
@@ -66,16 +75,16 @@ Next, we assemble a Cartesian trajectory with linear phase encoding
 (see `src/trajectories/cartesian.jl`).
 
 ````julia
-nr = N # nr of readouts
+nr = 5N # nr of readouts
 ns = N # nr of samples per readout
 Δt_adc = 10^-5 # time between sample points
 py = -(N÷2):1:(N÷2)-1 # phase encoding indices
+py = repeat(py, nr÷N)
 Δkˣ = 2π / FOVˣ; # k-space step in x direction for Nyquist sampling
 Δkʸ = 2π / FOVʸ; # k-space step in y direction for Nyquist sampling
 k0 = [(-ns/2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr]; # starting points in k-space per readout
-Δk = [Δkˣ + 0.0im for r in 1:nr]; # k-space steps per sample point for each readout
 
-trajectory = CartesianTrajectory(nr,ns,Δt_adc,k0,Δk,py);
+trajectory = CartesianTrajectory(nr,ns,Δt_adc,k0,Δkˣ,py);
 ````
 
 We use two different receive coils
@@ -84,7 +93,7 @@ We use two different receive coils
 coil₁ = complex.(repeat(LinRange(0.5,1.0,N),1,N));
 coil₂ = coil₁';
 
-coil_sensitivities = map(SVector, coil₁, coil₂)
+coil_sensitivities = map(SVector{2}, vec(coil₁), vec(coil₂))
 ````
 
 Now simulate the signal for the sequence, trajectory, phantom and coils on GPU
@@ -97,7 +106,27 @@ parameters          = gpu(f32(parameters))
 trajectory          = gpu(f32(trajectory))
 coil_sensitivities  = gpu(f32(coil_sensitivities))
 
-signal = simulate(CUDALibs(), sequence, parameters, trajectory, coil_sensitivities)
+using BlochSimulators.CUDA
+
+resource = CUDALibs()
+````
+
+compute magnetization at echo times in all voxels
+
+````julia
+CUDA.@time echos = simulate_echos(resource, sequence, parameters);
+````
+
+apply phase encoding (typically only for Cartesian trajectories)
+
+````julia
+CUDA.@time phase_encoding!(echos, trajectory, parameters)
+````
+
+compute signal from (phase-encoded) magnetization at echo times
+
+````julia
+CUDA.@time signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities);
 
 signal = collect(signal)
 ````

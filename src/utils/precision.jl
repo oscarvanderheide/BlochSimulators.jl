@@ -7,10 +7,10 @@ export f32, f64
 """
     f32(x)
 
-Change precision of x to Float32. It uses Functors.fmap to recursively
-traverse the fields of the struct x. For custom structs (e.g. <:BlochSimulator
-or <:AbstractTrajectory), it is required that typeof(x) be made a
-Functors.@functor (e.g. @functor FISP).
+Change precision of `x` to `Float32`. It uses `Functors.fmap` to recursively
+traverse the fields of the struct `x`. For custom structs (e.g. `<:BlochSimulator`
+or `<:AbstractTrajectory`), it is required that `typeof(x)` be made a
+`Functors.@functor` (e.g. `@functor FISP`).
 
 It may be necessary to add new adapt rules (by adding new methods to adapt_storage)
 if new structs with complicated nested fields are introduced.
@@ -20,12 +20,12 @@ f32(x) = fmap(y -> _change_precision(Float32,y), x)
 """
     f64(x)
 
-Change precision of x to Float64. It uses Functors.fmap to recursively
-traverse the fields of the struct x. For custom structs (e.g. <:BlochSimulator
-or <:AbstractTrajectory), it is required that typeof(x) be made a
-Functors.@functor (e.g. @functor FISP).
+Change precision of `x` to `Float64`. It uses `Functors.fmap` to recursively
+traverse the fields of the struct `x`. For custom structs (e.g. `<:BlochSimulator`
+or `<:AbstractTrajectory`), it is required that `typeof(x)` be made a
+`Functors.@functor` (e.g. `@functor FISP`).
 
-It may be necessary to add new adapt rules (by adding new methods to adapt_storage)
+It may be necessary to add new adapt rules (by adding new methods to `adapt_storage`)
 if new structs with complicated nested fields are introduced.
 """
 f64(x) = fmap(y -> _change_precision(Float64,y), x)

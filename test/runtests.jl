@@ -289,11 +289,11 @@ end
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
     # and check if outcome is the same
-    if workers() == [1] 
+    if workers() == [1]
         addprocs(2, exeflags="--project=.")
         @everywhere using BlochSimulators, ComputationalResources
     end
-    
+
     echos_cpuprocesses = simulate_echos(CPUProcesses(), sequence, parameters)
 
     @test echos_cpu1 ≈ convert(Array,echos_cpuprocesses)
@@ -319,7 +319,7 @@ end
     nr, ns = 100, 40
     trajectory = CartesianTrajectory(nr,ns)
 
-    s = simulate_signal(CPU1(), sequence, parameters, trajectory)
+    s = simulate_signal(CPU1(), sequence, parameters, trajectory) .|> only
 
     # Because this voxel has x = y = 0, a gradient trajectory
     # should not influence it and for one voxel there's no
@@ -328,7 +328,7 @@ end
 
     # If we now simulate with a voxel with x and y non-zero, then
     # at echo time the magnetization should be the same in abs
-    s2 = simulate_signal(CPU1(), sequence, [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, rand(), rand())], trajectory)
+    s2 = simulate_signal(CPU1(), sequence, [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, rand(), rand())], trajectory) .|> only
 
     @test abs.(d) ≈ abs.(s2[(ns÷2)+1:ns:end])
 
@@ -358,13 +358,18 @@ end
 
     @test BlochSimulators.sampling_mask(cartesian)[10] == CartesianIndices((1:ns, 10:10))
 
-    @test BlochSimulators.kspace_coordinates(cartesian)[:,1] = k0[1] .+ collect(((-ns÷2):(ns÷2-1)) .* Δkˣ)
+    @test BlochSimulators.kspace_coordinates(cartesian)[:,1] == k0[1] .+ (collect(0:ns-1) .* Δkˣ)
 end
 
 @testset "Tests for RadialTrajectory" begin
 
     # assemble radial trajectory
+    nr = 100
+    ns = 128
+    Δt = 4e-6 # s
     os = 2;  # factor two oversampling
+    fovx = 10.0 # cm
+    fovy = 10.0 # cm
     φ = π/((√5+1)/2) # golden angle of ~111 degrees
     Δkˣ = 2π / (os*fovx);
     φ = collect(φ .* (0:nr-1))
@@ -388,6 +393,45 @@ end
 
 end
 
+@testset "Signal simulation sanity checks" begin
+
+    # if echos .= 1, x and y .= 0, coil_sensitivities .= 1, T₂ .= Inf, 
+    # then signal should simply be the nr of voxels at all time points
+        nv = 100 # voxels
+        nr = 100 # readouts
+        ns = 10  # samples per readout
+
+        echos = complex.(ones(nr,nv))
+        parameters = fill(T₁T₂ρˣρʸxy(Inf,Inf,1.0,0.0,0.0,0.0), nv)
+        trajectory = CartesianTrajectory(nr,ns)
+        coil_sensitivities = fill(SVector(complex(1.0)), nv)
+        resource = CPU1()
+
+        signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = only.(signal)
+
+        @test signal == fill(nv, nr*ns)
+
+    # if proton density is 0, then signal should be 0 
+
+        parameters = fill(T₁T₂ρˣρʸxy(rand(),rand(),0.0,0.0,rand(), rand()), nv)
+
+        signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = only.(signal)
+
+        @test signal == zeros(nr*ns) 
+
+    # if coil sensitivities are 0 everywhere, then signal should be 0 
+
+        parameters = fill(T₁T₂ρˣρʸxy(rand(6)...), nv)
+        nc = 4
+        coil_sensitivities = zeros(SVector{nc}, nv)
+        signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+
+        @test signal == zeros(SVector{nc}, nr*ns) 
+
+end
+
 @testset "Test signal simulation on different computational resources" begin
 
     # Simulate signal with CPU1() as reference
@@ -400,15 +444,15 @@ end
     trajectory = CartesianTrajectory(nTR, 100)
     coil_sensitivities = rand(SVector{2,ComplexF64}, nvoxels)
 
-    signal_cpu = simulate_signal(CPU1(), sequence, parameters, trajectory, coil_sensitivities)
+    signal_cpu1 = simulate_signal(CPU1(), sequence, parameters, trajectory, coil_sensitivities)
 
     # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
     signal_cputhreads = simulate_signal(CPUThreads(), sequence, parameters, trajectory, coil_sensitivities)
-    @test signal_cpu ≈ signal_cputhreads
+    @test signal_cpu1 ≈ signal_cputhreads
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
     # and check if outcome is the same
-    if workers() == [1] 
+    if workers() == [1]
         addprocs(2, exeflags="--project=.")
         @everywhere using BlochSimulators, ComputationalResources, DistributedArrays
     end
@@ -419,7 +463,7 @@ end
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
         signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coil_sensitivities)) |> collect
-        @test signal_cpu ≈ signal_cudalibs
+        @test signal_cpu1 ≈ signal_cudalibs
     end
 
 end

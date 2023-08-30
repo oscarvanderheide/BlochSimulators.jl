@@ -80,17 +80,17 @@ Pages   = ["trajectories/cartesian.jl", "trajectories/radial.jl", "trajectories/
 
 ## Dictionary Simulation
 ```@docs
-simulate(resource, sequence, parameters)
+simulate_echos(resource, sequence, parameters)
 ```
 
 ```@autodocs
 Modules = [BlochSimulators]
-Pages   = ["simulate/dictionary.jl"]
+Pages   = ["simulate/echos.jl"]
 ```
 
 ## Signal Simulation
 ```@docs
-simulate(resource, sequence, parameters, trajectory, coil_sensitivities)
+simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
 ```
 
 ```@autodocs

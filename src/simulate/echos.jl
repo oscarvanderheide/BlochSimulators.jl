@@ -7,7 +7,7 @@ for all combinations of tissue parameters contained in `parameters`.
 This function can also be used to generate dictionaries for MR Fingerprinting purposes.
 
 # Arguments
-- `resource::ComputationalResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
+- `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
 - `parameters::AbstractVector{<:AbstractTissueParameters}`: Vector with different combinations of tissue parameters
 
@@ -20,7 +20,7 @@ function simulate_echos(resource, sequence, parameters) end
 """
     simulate_echos(::CPU1, sequence, parameters)
 
-Perform simulations on a single CPU by looping over all entries of `parameters` 
+Perform simulations on a single CPU by looping over all entries of `parameters`
 and performing Bloch simulations for each combination of tissue parameters.
 """
 function simulate_echos(::CPU1, sequence, parameters)
@@ -44,7 +44,7 @@ end
 """
     simulate_echos(::CPUThreads, sequence, parameters)
 
-Perform simulations by looping over all entries of `parameters` in a 
+Perform simulations by looping over all entries of `parameters` in a
 multi-threaded fashion. See the [Julia documentation](https://docs.julialang.org/en/v1/manual/multi-threading/)
 for more details on how to launch Julia with multiple threads of execution.
 """
@@ -75,7 +75,7 @@ for more details on how to use Julia with multiple workers.
 function simulate_echos(::CPUProcesses, sequence, dparameters::DArray)
     # DArrays are from the package DistributedArrays.
     # With [:lp] the local part of of such an array is used on a worker
-    doutput = [@spawnat p simulate_echos(CPU1(), sequence, dparameters[:lp]) for p in workers()]
+    doutput = @sync [@spawnat p simulate_echos(CPU1(), sequence, dparameters[:lp]) for p in workers()]
     # On each worker, a part of the echos array is now computed.
     # Turn it into a single DArray with the syntax below
     return DArray(permutedims(doutput))
@@ -102,7 +102,7 @@ function simulate_echos(::CUDALibs, sequence, parameters::CuArray)
 
     # define kernel function to be run by each thread on gpu
     echos_kernel!(output, sequence, parameters) = begin
-        
+
         # get voxel index
         voxel = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 
