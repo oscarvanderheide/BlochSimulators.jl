@@ -1,16 +1,17 @@
-# # Simulate MR Signal
+## Simulate MR Signal
+
 using Pkg; Pkg.activate("docs")
+
 # In this example we are going to generate a phantom
 # and simulate the signal for a gradient-balanced sequence
 # with a Cartesian gradient trajectory
 
-## stuf
 using Revise
 using BlochSimulators
 using ComputationalResources
 using StaticArrays
 using LinearAlgebra
-# using PyPlot
+using PythonPlot
 using FFTW
 import ImagePhantoms
 
@@ -34,7 +35,7 @@ parameters = map(T₁T₂B₀ρˣρʸxy, T₁, T₂, B₀, real.(ρ), imag.(ρ),
 # a TR of 10 ms and 0-π phase cycling. See `src/sequences/pssfp.jl` for the
 # sequence description and the fields for which values must be provided
 
-nTR = 5N
+nTR = N
 RF_train = complex.(fill(90.0, nTR)) # constant flip angle train
 RF_train[2:2:end] .*= -1 # 0-π phase cycling
 nRF = 25 # nr of RF discretization points
@@ -53,7 +54,7 @@ sequence = pSSFP(RF_train, TR, γΔtRF, Δt, γΔtGRz, z)
 # Next, we assemble a Cartesian trajectory with linear phase encoding
 # (see `src/trajectories/cartesian.jl`).
 
-nr = 5N # nr of readouts
+nr = N # nr of readouts
 ns = N # nr of samples per readout
 Δt_adc = 10^-5 # time between sample points
 py = -(N÷2):1:(N÷2)-1 # phase encoding indices
@@ -94,7 +95,6 @@ signal = collect(signal)
 # Let's look at fft images of the signals from the two different coils
 signal₁ = first.(signal)
 signal₂ = last.(signal)
-
 
 @. signal₁[2:2:end] *= -1 # correct for phase cycling
 @. signal₂[2:2:end] *= -1 # correct for phase cycling
