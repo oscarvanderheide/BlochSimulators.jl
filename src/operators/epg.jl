@@ -252,7 +252,7 @@ Sample the measurable transverse magnetization, that is, the `F₊` component of
 The `+=` is needed for 2D sequences where slice profile is taken into account.
 """
 @inline function sample_transverse!(output, index::Union{Integer,CartesianIndex}, Ω::EPGStates)
-    output[index] += F₊(Ω)[0]
+    @inbounds output[index] += F₊(Ω)[0]
 end
 
 """
@@ -262,5 +262,5 @@ Sample the entire configuration state matrix `Ω`. The `+=` is needed
 for 2D sequences where slice profile is taken into account.
 """
 @inline function sample_Ω!(output, index::Union{Integer,CartesianIndex}, Ω::EPGStates)
-    output[index] .+= Ω
+    @inbounds output[index] .+= Ω
 end

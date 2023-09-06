@@ -150,7 +150,7 @@ Sample transverse magnetization from `Isochromat`. The "+=" is needed
 for 2D sequences where slice profile is taken into account.
 """
 @inline function sample_transverse!(output, index::Union{Integer,CartesianIndex}, m::Isochromat)
-    output[index] += complex(m.x,m.y)
+    @inbounds output[index] += complex(m.x,m.y)
 end
 
     """
@@ -160,5 +160,5 @@ Sample m.x, m.y and m.z components from `Isochromat`. The "+=" is needed
 for 2D sequences where slice profile is taken into account.
 """
 @inline function sample_xyz!(output::AbstractArray{<:S}, index::Union{Integer,CartesianIndex}, m::Isochromat) where S
-    output[index] += S(m.x, m.y, m.z)
+    @inbounds output[index] += S(m.x, m.y, m.z)
 end
