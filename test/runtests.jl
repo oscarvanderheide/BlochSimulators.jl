@@ -111,6 +111,7 @@ end
         @test sum(Ω) == 1.0 + 0.0im
 
     # test inversion
+
         # "adiabatic inversion"
         BlochSimulators.initial_conditions!(Ω)
         BlochSimulators.invert!(Ω)
@@ -133,6 +134,12 @@ end
         BlochSimulators.initial_conditions!(Ω)
         BlochSimulators.invert!(Ω,p)
         @test Ω[3,1] == 1
+
+        # check "adiabatic inversion" for higher order states as well
+        BlochSimulators.initial_conditions!(Ω)
+        BlochSimulators.Z(Ω) .= 0.1
+        BlochSimulators.invert!(Ω)
+        @test all(Ω[3,:] .== complex(-0.1))
 
     # test decay
         Ω = @MMatrix rand(ComplexF64,3,20)
@@ -193,6 +200,14 @@ end
         @test Ω[1,end] == Ωpre[1,end-1]
         @test Ω[2,end-1] == Ωpre[2,end]
         @test Ω[3,end] == Ωpre[3,end]
+
+    # spoil
+
+        # check that transverse states are nulled
+        Ω = @MMatrix rand(ComplexF64,3,20)
+        BlochSimulators.spoil!(Ω)
+        @test all(Ω[1,:] .== complex(0.0))
+        @test all(Ω[2,:] .== complex(0.0))
 
 end
 

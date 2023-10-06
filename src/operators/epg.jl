@@ -229,13 +229,13 @@ end
 """
     invert!(Ω::EPGStates, p::AbstractTissueParameters)
 
-Invert `Z`-component of 0th order state (assuming spoiled transverse magnetization so xy-component zero and no population of higher order `Z` states).
+Invert `Z`-component of states of all orders. *Assumes fully spoiled transverse magnetization*.
 """
 @inline function invert!(Ω::EPGStates, p::AbstractTissueParameters)
     # inversion angle
     θ = π
     hasB₁(p) && (θ *= p.B₁)
-    Z(Ω)[0] *= cos(θ)
+    Z(Ω) .*= cos(θ)
 end
 
 """
@@ -244,7 +244,19 @@ end
 Invert with B₁ insenstive (i.e. adiabatic) inversion pulse
 """
 @inline function invert!(Ω::EPGStates)
-    Z(Ω)[0] *= -1
+    Z(Ω) .*= -1
+end
+
+# Spoil
+
+"""
+    spoil!(Ω::EPGStates)
+
+Perfectly spoil the transverse components of all states.
+"""
+@inline function spoil!(Ω::EPGStates)
+    F₊(Ω) .= 0
+    F̄₋(Ω) .= 0
 end
 
 # Sample
