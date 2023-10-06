@@ -74,7 +74,7 @@ cu_parameters = parameters |> f32 |> gpu;
 
 # Remember, the first time a compilation procedure takes place which, especially
 # on GPU, can take some time.
-println("Active CUDA device:"); CUDA.device()
+println("Active CUDA device:"); BlochSimulators.CUDA.device()
 
 @time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
 # Call the pre-compiled version
