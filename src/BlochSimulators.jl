@@ -51,6 +51,7 @@ module BlochSimulators
 
     # An EPG-based gradient-spoiled (FISP) sequence with variable flip angle train
     include("sequences/fisp.jl")
+    include("sequences/fisp3d.jl")
 
     # Informal interface for trajectory implementations. By convention,
     # a sequence::BlochSimulator is used to simulate magnetization at echo times
