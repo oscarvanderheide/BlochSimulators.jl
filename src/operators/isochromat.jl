@@ -52,16 +52,16 @@ end
 # Rotate
 
 """
-    rotate(m::Isochromat{T}, γΔtRF::Complex, γΔtGR::Tuple, (x,y,z), Δt, p::AbstractTissueParameters) where T
+    rotate(m::Isochromat{T}, γΔtRF::Complex, γΔtGR::Tuple, (x,y,z), Δt, p::AbstractTissueParameters, Δω = zero(T)) where T
 
 RF, gradient and/or ΔB₀ induced rotation of Isochromat computed using Rodrigues rotation formula (https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula).
 """
-@inline function rotate(m::Isochromat{T}, γΔtRF, γΔtGR, r, Δt, p::AbstractTissueParameters) where T
+@inline function rotate(m::Isochromat{T}, γΔtRF, γΔtGR, r, Δt, p::AbstractTissueParameters, ΔtΔω = zero(T)) where T
 
     # Determine rotation vector a
     aˣ =  real(γΔtRF)
     aʸ = -imag(γΔtRF)
-    aᶻ = -(γΔtGR ⋅ r)
+    aᶻ = -(γΔtGR ⋅ r + ΔtΔω)
 
     hasB₁(p) && (aˣ *= p.B₁)
     hasB₁(p) && (aʸ *= p.B₁)

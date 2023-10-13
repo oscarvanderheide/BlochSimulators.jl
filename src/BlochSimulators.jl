@@ -55,6 +55,8 @@ module BlochSimulators
     include("../examples/sequences/fisp2d.jl")
     include("../examples/sequences/fisp3d.jl")
 
+    include("../examples/adiabatic.jl")
+
     # Informal interface for trajectory implementations. By convention,
     # a sequence::BlochSimulator is used to simulate magnetization at echo times
     # only and a trajectory::AbstractTrajectory is used to simulate
