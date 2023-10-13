@@ -128,7 +128,11 @@ Phase of RF is the phase of the pulse. If RF is real, the computations simplify 
     Ω .= R * Ω
     return nothing
 end
+"""
+    excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where T<:Union{Real, Quantity{<:Real}}
 
+If RF is real, the calculations simplify (and probably Ω is real too, reducing memory (access) requirements).
+"""
 @inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where T<:Union{Real, Quantity{<:Real}}
 
     # angle of RF pulse, convert from degrees to radians
