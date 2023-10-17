@@ -21,6 +21,7 @@ in this hyper steady state.
 - `TW::T`: Waiting time between repetitions in seconds
 - `repetitions::Int`: Number of repetitions
 - `inversion_prepulse::Bool`: With or without inversion prepulse at the start of every repetition
+- 'wait_spoiling::Bool': default=false; spoiling is assumed during wait time 
 """
 # Create struct that holds parameters necessary for performing FISP simulations based on the EPG model
 struct FISP3D{T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}} <: EPGSimulator{T,Ns}
@@ -32,7 +33,11 @@ struct FISP3D{T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}} <: EPGSimulat
     TW::T     # waiting time between repetitions in seconds
     repetitions::Int # number of repetitions
     inversion_prepulse::Bool    # with or without inversion
+    wait_spoiling::Bool    # spoiling is assumed during waiting time 
 end
+# provide default value of wait_spoiling for backward compatibility
+FISP3D(RF_train,TR,TE,max_state,TI,TW,repetitions,inversion_prepulse) = 
+                    FISP3D(RF_train,TR,TE,max_state,TI,TW,repetitions,inversion_prepulse,false)
 
 # To be able to change precision and send to CUDA device
 @functor FISP3D
@@ -100,6 +105,9 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
         end
         # Ω = decay(Ω, E₁ᵂ, E₂ᵂ) # waiting between repetitions
         # Waiting between repetitions
+        if sequence.wait_spoiling
+            spoil!(Ω)
+        end
         rotate_decay!(Ω, E₁ᵂ, E₂ᵂ, eⁱᴮ⁰⁽ᵀᵂ⁾)
         regrowth!(Ω, E₁ᵂ)
     end
@@ -110,10 +118,11 @@ end
 # The _value_ of max_state needs to be part of the type, not its type (<:Int)
 # That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP,
 # here's a constructor that takes care of it in case you forget.
-FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse) = FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse)
+FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse, wait_spoiling) = 
+                        FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling)
 
 # Add method to getindex to reduce sequence length with convenient syntax (idx is something like 1:nr_of_readouts)
-Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse)
+Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse, seq.wait_spoiling)
 
 # Nicer printing of sequence in REPL
 # Base.show(io::IO, ::MIME"text/plain", seq::FISP) = begin
@@ -128,4 +137,5 @@ Base.show(io::IO, seq::FISP3D) = begin
     println(io, "TW:           ", seq.TW)
     println(io, "repetitions:  ", seq.repetitions)
     println(io, "inversion_prepulse: ", seq.inversion_prepulse)
+    println(io, "wait_spoiling: ", seq.wait_spoiling)
 end
