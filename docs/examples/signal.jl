@@ -35,7 +35,7 @@ parameters = map(T₁T₂B₀ρˣρʸxy, T₁, T₂, B₀, real.(ρ), imag.(ρ),
 # a TR of 10 ms and 0-π phase cycling. See `src/sequences/pssfp.jl` for the
 # sequence description and the fields for which values must be provided
 
-nTR = N
+nTR = 5N
 RF_train = complex.(fill(90.0, nTR)) # constant flip angle train
 RF_train[2:2:end] .*= -1 # 0-π phase cycling
 nRF = 25 # nr of RF discretization points
@@ -54,7 +54,7 @@ sequence = pSSFP2D(RF_train, TR, γΔtRF, Δt, γΔtGRz, z)
 # Next, we assemble a Cartesian trajectory with linear phase encoding
 # (see `src/trajectories/cartesian.jl`).
 
-nr = N # nr of readouts
+nr = nTR # nr of readouts
 ns = N # nr of samples per readout
 Δt_adc = 10^-5 # time between sample points
 py = -(N÷2):1:(N÷2)-1 # phase encoding indices
@@ -69,7 +69,7 @@ trajectory = CartesianTrajectory(nr,ns,Δt_adc,k0,Δkˣ,py);
 coil₁ = complex.(repeat(LinRange(0.5,1.0,N),1,N));
 coil₂ = coil₁';
 
-coil_sensitivities = map(SVector{2}, vec(coil₁), vec(coil₂))
+coil_sensitivities = [vec(coil₁) ;; vec(coil₂)]
 
 # Now we want to simulate the signal for the sequence, trajectory, phantom and coils on GPU
 
