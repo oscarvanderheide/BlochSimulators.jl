@@ -86,14 +86,11 @@ end
     R₂ = inv(p.T₂)
     ns = nsamplesperreadout(trajectory, readout_idx)
     Δt = trajectory.Δt
-    @inbounds k⁰ = trajectory.k_start_readout[readout_idx]
     Δkₓ = trajectory.Δk_adc
     x = p.x
-
     # There are ns samples per readout, echo time is assumed to occur
     # at index (ns÷2)+1. Now compute sample index relative to the echo time
     s = sample_idx - ((ns÷2)+1)
-
     # Apply readout gradient, T₂ decay and B₀ rotation
     E₂ = exp(-Δt*s*R₂)
     θ = Δkₓ * x

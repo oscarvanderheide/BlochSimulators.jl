@@ -111,7 +111,7 @@ end
     echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
 
 If `to_sample_point` has been defined for the provided trajectory, this (generic but not optimized)
-function computes the signal at timepoint `t`` for all receive coils. It does so by computing
+function computes the signal at timepoint `t` for all receive coils. It does so by computing
 the readout- and sample indices for the given timepoint `t`, reading in the magnetization at echo
 time of the `r`-th readout, using `to_sample_point` to compute the magnetization at the `s`-th sample
 index, and then it integrates over all voxels (while scaling the magnetization with the proper coil
