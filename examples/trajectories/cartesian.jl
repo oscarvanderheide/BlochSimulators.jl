@@ -154,19 +154,19 @@ end
 @inline nsamplesperreadout(t::SpokesTrajectory) = t.nsamplesperreadout
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
-function phase_encoding!(magnetization, trajectory::CartesianTrajectory, parameters)
-    y = map(p -> p.y, parameters) |> vec
+function phase_encoding!(echos, trajectory::CartesianTrajectory, coordinates)
+    y  = last.(coordinates) |> vec
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
     return nothing
 end
 
 # perhaps do this with metaprogramming instead (iteratate over all subtypes of AbstractTrajectory)
-function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory, parameters::DArray)
+function phase_encoding!(echos::DArray, trajectory::CartesianTrajectory, coordinates::DArray)
 
     @sync for p in workers()
         @async begin
-            @spawnat p phase_encoding!(localpart(magnetization), trajectory, localpart(parameters))
+            @spawnat p phase_encoding!(localpart(echos), trajectory, localpart(coordinates))
         end
     end
 
