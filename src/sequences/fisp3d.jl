@@ -139,3 +139,5 @@ Base.show(io::IO, seq::FISP3D) = begin
     println(io, "inversion_prepulse: ", seq.inversion_prepulse)
     println(io, "wait_spoiling: ", seq.wait_spoiling)
 end
+
+export FISP3D
