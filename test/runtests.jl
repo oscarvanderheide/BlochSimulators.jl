@@ -223,7 +223,7 @@ end
 
     # test FISP sequence struct
     nTR = 10
-    s = FISP(nTR)
+    s = FISP2D(nTR)
 
     @test f64(s) == s
 
@@ -262,7 +262,7 @@ end
 
     # test FISP sequence struct
     nTR = 10
-    s = FISP(nTR)
+    s = FISP2D(nTR)
 
     @test gpu(s).RF_train == CuArray(s.RF_train)
     @test gpu(s).sliceprofiles == CuArray(s.sliceprofiles)
@@ -292,7 +292,7 @@ end
 
     # Simulate dictionary with CPU1()
     nTR = 1000
-    sequence = FISP(nTR)
+    sequence = FISP2D(nTR)
     sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂(rand(), rand()) for _ = 1:1000]
 
@@ -325,7 +325,7 @@ end
 
     # Simulate magnetization at echo times for a single voxel with coordinates (0,0,0)
     nTR = 100
-    sequence = FISP(nTR)
+    sequence = FISP2D(nTR)
     parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, 0.0, 0.0)]
 
     d = simulate_magnetization(CPU1(), sequence, parameters)
@@ -452,7 +452,7 @@ end
     # Simulate signal with CPU1() as reference
     nTR = 1000
     nvoxels = 1000
-    sequence = FISP(nTR)
+    sequence = FISP2D(nTR)
     sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂ρˣρʸxy(1.0,0.1,rand(4)...) for _ = 1:nvoxels]
 

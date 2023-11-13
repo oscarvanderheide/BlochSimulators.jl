@@ -49,10 +49,10 @@ module BlochSimulators
     include("../examples/sequences/generic3d.jl")
 
     # An isochromat-based pSSFP sequence with variable flip angle train
-    include("../examples/sequences/pssfp.jl")
+    include("../examples/sequences/pssfp2d.jl")
 
     # An EPG-based gradient-spoiled (FISP) sequence with variable flip angle train
-    include("../examples/sequences/fisp.jl")
+    include("../examples/sequences/fisp2d.jl")
     include("../examples/sequences/fisp3d.jl")
 
     # Informal interface for trajectory implementations. By convention,

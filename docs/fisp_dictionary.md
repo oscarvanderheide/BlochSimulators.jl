@@ -14,7 +14,7 @@ RF_train = LinRange(1,90,nTR) |> collect; # flip angle train
 TR,TE,TI = 0.010, 0.005, 0.100; # repetition time, echo time, inversion delay
 max_state = 25; # maximum number of configuration states to keep track of
 
-sequence = FISP(RF_train, TR, TE, max_state, TI);
+sequence = FISP2D(RF_train, TR, TE, max_state, TI);
 ````
 
 Next, set the desired input parameters

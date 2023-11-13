@@ -1,5 +1,5 @@
 """
-    FISP{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
+    FISP2D{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
 
 This struct is used to simulate gradient-spoiled sequence with varying flip angle
 scheme and adiabatic inversion prepulse using the EPG model. The TR and TE are fixed throughout
@@ -17,7 +17,7 @@ for example, the small tip-angle approximation or Shinnar LeRoux forward model).
 - `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation
 - `TI::T`: Inversion delay after the inversion prepulse in seconds
 """
-struct FISP{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
+struct FISP2D{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     RF_train::U
     sliceprofiles::V
     TR::T
@@ -29,18 +29,18 @@ struct FISP{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
 end
 
 # To be able to change precision and send to CUDA device
-@functor FISP
-@adapt_structure FISP
+@functor FISP2D
+@adapt_structure FISP2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::FISP) = length(sequence.RF_train)
-output_eltype(sequence::FISP) = unitless(eltype(sequence.RF_train))
+output_dimensions(sequence::FISP2D) = length(sequence.RF_train)
+output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 
 # If RF doesn't have phase, configuration states will be real
-Ω_eltype(sequence::FISP) = unitless(eltype(sequence.RF_train))
+Ω_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 
 # Sequence implementation
-@inline function simulate_magnetization!(echos, sequence::FISP, Ω, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(echos, sequence::FISP2D, Ω, p::AbstractTissueParameters)
 
     T₁, T₂ = p.T₁, p.T₂
     TR, TE, TI = sequence.TR, sequence.TE, sequence.TI
@@ -81,18 +81,18 @@ output_eltype(sequence::FISP) = unitless(eltype(sequence.RF_train))
 end
 
 # Add method to getindex to reduce sequence length with convenient syntax (idx is something like 1:nr_of_readouts)
-Base.getindex(seq::FISP, idx) = typeof(seq)(seq.RF_train[idx], seq.sliceprofiles, seq.TR, seq.TE, seq.max_state, seq.TI)
+Base.getindex(seq::FISP2D, idx) = typeof(seq)(seq.RF_train[idx], seq.sliceprofiles, seq.TR, seq.TE, seq.max_state, seq.TI)
 
 # The _value_ of max_state needs to be part of the type, not its type (<:Int)
-# That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP,
+# That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP2D,
 # here's a constructor that takes care of it in case you forget.
-FISP(RF_train, sliceprofiles, TR, TE, max_state::Int, TI) = FISP(RF_train, sliceprofiles, TR, TE, Val(max_state), TI)
+FISP2D(RF_train, sliceprofiles, TR, TE, max_state::Int, TI) = FISP2D(RF_train, sliceprofiles, TR, TE, Val(max_state), TI)
 
 # Nicer printing of sequence in REPL
-# Base.show(io::IO, ::MIME"text/plain", seq::FISP) = begin
-Base.show(io::IO, seq::FISP) = begin
+# Base.show(io::IO, ::MIME"text/plain", seq::FISP2D) = begin
+Base.show(io::IO, seq::FISP2D) = begin
     println("")
-    println(io, "FISP sequence")
+    println(io, "FISP2D sequence")
     println(io, "RF_train:     ", typeof(seq.RF_train), " $(length(seq.RF_train)) flip angles")
     println(io, "sliceprofiles:", "$(typeof(seq.sliceprofiles)) $(size(seq.sliceprofiles))")
     println(io, "TR:           ", seq.TR)
@@ -102,12 +102,12 @@ Base.show(io::IO, seq::FISP) = begin
 end
 
 # Convenience constructor to quickly generate pSSFP sequence of length nTR
-FISP(nTR) = FISP(complex.(rand(nTR)), complex.(rand(nTR,3)), 0.010, 0.005, Val(5), 0.1)
+FISP2D(nTR) = FISP2D(complex.(rand(nTR)), complex.(rand(nTR,3)), 0.010, 0.005, Val(5), 0.1)
 
 # Constructor for sequence without slice profile correction
-FISP(RF_train, TR, TE, max_state, TI) = begin
+FISP2D(RF_train, TR, TE, max_state, TI) = begin
     sliceprofiles = ones(eltype(RF_train), length(RF_train), 1)
-    FISP(RF_train, sliceprofiles, TR, TE, max_state, TI)
+    FISP2D(RF_train, sliceprofiles, TR, TE, max_state, TI)
 end
 
-export FISP
+export FISP2D

@@ -68,7 +68,7 @@ gaussian = [exp(-(i-(nRF/2))^2 * inv(nRF)) for i ∈ 1:nRF] # RF excitation wave
 nz = 35 # nr of spins in z direction
 z = SVector{nz}(LinRange(-1,1,nz)) # z locations
 
-sequence = pSSFP(RF_train, TR, γΔtRF, Δt, γΔtGRz, z)
+sequence = pSSFP2D(RF_train, TR, γΔtRF, Δt, γΔtGRz, z)
 ````
 
 Next, we assemble a Cartesian trajectory with linear phase encoding

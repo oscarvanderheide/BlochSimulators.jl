@@ -1,7 +1,7 @@
 """
-    pSSFP{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSimulator{T}
+    pSSFP2D{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSimulator{T}
 
-This struct is used to simulate a balanced pSSFP sequence with varying flip angle scheme and adiabatic inversion
+This struct is used to simulate a balanced pSSFP2D sequence with varying flip angle scheme and adiabatic inversion
 prepulse based on isochromat model. The TR and TE are fixed throughout the sequence. Slice profile correction
 is done by discretizing the RF excitation waveform in time and using multiple `Isochromat`s with different
 positions along the slice direction (`z`) per voxel. The sequence also uses an 'α/2' prepulse after the inversion.
@@ -20,7 +20,7 @@ in one time step from the echo time to the start of the next RF excitation.
 - `γΔtGRz::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}`: Slice select gradients for ex, inv and pr
 - `z::SVector{M}{T}` # Vector with different positions along the slice direction.
 """
-struct pSSFP{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSimulator{T}
+struct pSSFP2D{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSimulator{T}
     RF_train::U
     TR::T
     γΔtRF::SVector{N}{T}
@@ -30,17 +30,17 @@ struct pSSFP{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSi
 end
 
 # To be able to change precision and send to CUDA device
-@functor pSSFP
-@adapt_structure pSSFP
+@functor pSSFP2D
+@adapt_structure pSSFP2D
 
-export pSSFP
+export pSSFP2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::pSSFP) = length(sequence.RF_train)
-output_eltype(sequence::pSSFP) = eltype(sequence.RF_train)
+output_dimensions(sequence::pSSFP2D) = length(sequence.RF_train)
+output_eltype(sequence::pSSFP2D) = eltype(sequence.RF_train)
 
 # Sequence implementation
-@inline function simulate_magnetization!(echos, sequence::pSSFP, m, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(echos, sequence::pSSFP2D, m, p::AbstractTissueParameters)
 
     T₁,T₂ = p.T₁, p.T₂
 
@@ -92,7 +92,7 @@ output_eltype(sequence::pSSFP) = eltype(sequence.RF_train)
         m = decay(m, E₁ᵖʳ, E₂ᵖʳ)
         m = regrowth(m, E₁ᵖʳ)
 
-        # simulate pSSFP sequence with varying flipangles
+        # simulate pSSFP2D sequence with varying flipangles
         for (TR,θ) ∈ enumerate(sequence.RF_train)
             # simulate RF pulse and slice-selection gradient
             m = excite(m, θ, z)
@@ -109,13 +109,13 @@ output_eltype(sequence::pSSFP) = eltype(sequence.RF_train)
 end
 
 # add method to getindex to reduce sequence length with convenient syntax (idx is something like 1:nr_of_readouts)
-Base.getindex(seq::pSSFP, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.γΔtRF, seq.Δt, seq.γΔtGRz, seq.z)
+Base.getindex(seq::pSSFP2D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.γΔtRF, seq.Δt, seq.γΔtGRz, seq.z)
 
 # Nicer printing of sequence information in REPL
-# Base.show(io::IO, ::MIME"text/plain", seq::pSSFP) = begin
-Base.show(io::IO, seq::pSSFP) = begin
+# Base.show(io::IO, ::MIME"text/plain", seq::pSSFP2D) = begin
+Base.show(io::IO, seq::pSSFP2D) = begin
     println("")
-    println(io, "pSSFP sequence")
+    println(io, "pSSFP2D sequence")
     println(io, "RF_train: ", typeof(seq.RF_train))
     println(io, "TR:       ", seq.TR)
     println(io, "γΔtRF:    ", "SVector{$(length(seq.γΔtRF))}{$(eltype(seq.γΔtRF))}")
