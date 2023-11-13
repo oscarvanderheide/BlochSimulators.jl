@@ -16,8 +16,8 @@ an `AbstractTrajectory` will be needed as well.
 To make a simulator for a particular pulse sequence:
 1. Make a struct that's a subtype of either `IsochromatSimulator` or `EPGSimulator`.
     The struct will hold parameters that are necessary for performing the simulations.
-2. Add a method to `simulate_echos!` that implements the pulse sequence. For both performance and GPU compatibility,
-    make sure that `simulate_echos!` does not do any heap allocations. Examples for `pSSFP` and `FISP`
+2. Add a method to `simulate_magnetization!` that implements the pulse sequence. For both performance and GPU compatibility,
+    make sure that `simulate_magnetization!` does not do any heap allocations. Examples for `pSSFP` and `FISP`
     sequences are found in `src/sequences`.
 3. Add methods to `output_eltype` and `output_size` that are used to allocate an output array within the simulate function.
 
@@ -28,7 +28,7 @@ To make a simulator for a particular pulse sequence:
 
 **IMPORTANT**
 
-The `simulate_echos!` functions (which dispatch on the provided sequence) are assumed to be type-stable and non-allocating
+The `simulate_magnetization!` functions (which dispatch on the provided sequence) are assumed to be type-stable and non-allocating
 Should be possible to achieve when using functions from `operators/epg.jl`` and `operators/isochromat.jl` and a properly
 parametrized sequence struct.
 """
@@ -94,7 +94,7 @@ function output_dimensions(::BlochSimulator)
 end
 
 """
-    simulate_echos!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) end
+    simulate_magnetization!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) end
 
 For each `<:BlochSimulator`, a method should be added to this function that
 implements the actual pulse sequence using information contained in the sequence struct
@@ -112,8 +112,8 @@ non-allocating.
     to the simulation (e.g. `T₁T₂`)
 
 """
-function simulate_echos!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
-    @warn "Must implement simulate_echos!"
+function simulate_magnetization!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
+    @warn "Must implement simulate_magnetization!"
 end
 
 ### Optional functions
