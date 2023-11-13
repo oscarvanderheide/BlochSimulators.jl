@@ -1,18 +1,20 @@
 module BlochSimulators
 
     # Load external packages
-    using LinearAlgebra
-    using StaticArrays
     using ComputationalResources
-    using OffsetArrays
+    using CUDA
     using Distributed
     using DistributedArrays
-    using CUDA
-    import Adapt: adapt, adapt_storage, @adapt_structure # to allow custom Structs of non-isbits type to be used on gpu
     using Functors
-    import Functors: @functor, functor, fmap, isleaf
     using InteractiveUtils # needed for subtypes function
-    using Unitful, Unitless
+    using LinearAlgebra
+    using OffsetArrays
+    using StaticArrays
+    using Unitful
+    using Unitless
+    
+    import Adapt: adapt, adapt_storage, @adapt_structure # to allow custom Structs of non-isbits type to be used on gpu
+    import Functors: @functor, functor, fmap, isleaf
 
     # hard-coded nr of threads per block on GPU
     const THREADS_PER_BLOCK = 32
