@@ -45,15 +45,15 @@ module BlochSimulators
     # Isochromat simulator that is generic in the sense that it accepts
     # arrays of RF and gradient waveforms similar to the Bloch simulator from
     # Brian Hargreaves (http://mrsrl.stanford.edu/~brian/blochsim/)
-    include("sequences/generic2d.jl") # with summation over slice direction
-    include("sequences/generic3d.jl")
+    include("../examples/sequences/generic2d.jl") # with summation over slice direction
+    include("../examples/sequences/generic3d.jl")
 
     # An isochromat-based pSSFP sequence with variable flip angle train
-    include("sequences/pssfp.jl")
+    include("../examples/sequences/pssfp.jl")
 
     # An EPG-based gradient-spoiled (FISP) sequence with variable flip angle train
-    include("sequences/fisp.jl")
-    include("sequences/fisp3d.jl")
+    include("../examples/sequences/fisp.jl")
+    include("../examples/sequences/fisp3d.jl")
 
     # Informal interface for trajectory implementations. By convention,
     # a sequence::BlochSimulator is used to simulate magnetization at echo times
@@ -62,8 +62,8 @@ module BlochSimulators
     include("trajectories/_interface.jl")
 
     # Currently included example trajectories:
-    include("trajectories/cartesian.jl")
-    include("trajectories/radial.jl")
+    include("../examples/trajectories/cartesian.jl")
+    include("../examples/trajectories/radial.jl")
 
     # Utility functions (gpu, f32, f64) to send structs to gpu
     # and change their precision

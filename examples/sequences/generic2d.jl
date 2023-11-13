@@ -60,7 +60,6 @@ output_eltype(sequence::Generic2D) = Isochromat{eltype(sequence.GR)}
             m = rotate(m, γΔtRF, γΔtGR, (p.x, p.y, z), Δt[t], p)
 
             # T₁ and T₂ decay, T₁ regrowth
-
             E₁, E₂ = exp(-Δt[t]/T₁), exp(-Δt[t]/T₂)
 
             m = decay(m, E₁, E₂)
