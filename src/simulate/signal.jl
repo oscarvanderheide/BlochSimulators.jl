@@ -30,13 +30,13 @@ function simulate_signal(resource, sequence, parameters, trajectory, coil_sensit
     @assert :y ∈ fieldnames(eltype(parameters))
 
     # compute magnetization at echo times in all voxels
-    echos = simulate_echos(resource, sequence, parameters)
+    echos = simulate_magnetization(resource, sequence, parameters)
 
     # apply phase encoding (typically only for Cartesian trajectories)
     phase_encoding!(echos, trajectory, parameters)
 
     # compute signal from (phase-encoded) magnetization at echo times
-    signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+    signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
 
     return signal
 end
@@ -44,28 +44,28 @@ end
 ### NAIVE BUT GENERIC IMPLEMENTATION ###
 
 """
-    echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+    magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
 
-Given the magnetization at echo times in all voxels, allocate memory for the signal
-output on CPU, then loop over all time points `t` and use the (generic) `echos_to_signal!`
+Given the magnetization in all voxels (typically at echo times only), allocate memory for the signal
+output on CPU, then loop over all time points `t` and use the (generic) `magnetization_to_signal!`
 implementation to compute the signal for that time point.
 
 This loop order is not necessarily optimal (and performance may be) across all trajectories and
 computational resources. If a better implementation is available, add new methods to this
 function for those specific combinations of resources and trajectories.
 """
-function echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+function magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
 
     signal = _allocate_signal_output(resource, trajectory, coil_sensitivities)
 
     if resource == CPU1()
         for t in 1:nsamples(trajectory)
-            echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+            magnetization_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
         end
     elseif resource == CPUThreads()
         Threads.@threads for t in 1:nsamples(trajectory)
             # Different threads compute signals at different timepoints t
-            echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+            magnetization_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
         end
     elseif resource == CUDALibs()
 
@@ -73,32 +73,32 @@ function echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivi
         nr_blocks = cld(nsamples(trajectory), THREADS_PER_BLOCK)
 
         # define kernel function to be run by each thread on gpu
-        echos_to_signal_kernel!(signal, echos, parameters, trajectory, coil_sensitivities) = begin
+        magnetization_to_signal_kernel!(signal, echos, parameters, trajectory, coil_sensitivities) = begin
 
             t = (blockIdx().x - 1) * blockDim().x + threadIdx().x # global time point index
 
             if t <= nsamples(trajectory)
-                echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+                magnetization_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
             end
             return nothing
         end
 
         # launch kernels, threads per block hardcoded for now
         CUDA.@sync begin
-            @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK echos_to_signal_kernel!(signal, echos, parameters, trajectory, coil_sensitivities)
+            @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_to_signal_kernel!(signal, echos, parameters, trajectory, coil_sensitivities)
         end
     end
 
     return signal
 end
 
-function echos_to_signal(::CPUProcesses, dechos::DArray, dparameters::DArray, trajectory, dcoil_sensitivities::DArray)
+function magnetization_to_signal(::CPUProcesses, dechos::DArray, dparameters::DArray, trajectory, dcoil_sensitivities::DArray)
 
     # for some reason, assembling DArrays does not work with vectors but it does
     # with matrices
     vec_to_mat(x::AbstractVector) = reshape(x,length(x),1)
     # start computing local signal on each worker
-    dsignal = @sync [@spawnat p vec_to_mat(echos_to_signal(CPU1(), localpart(dechos), localpart(dparameters), trajectory, localpart(dcoil_sensitivities))) for p in workers()]
+    dsignal = @sync [@spawnat p vec_to_mat(magnetization_to_signal(CPU1(), localpart(dechos), localpart(dparameters), trajectory, localpart(dcoil_sensitivities))) for p in workers()]
     # assemble new DArray from the arrays on each worker
     dsignal = DArray(permutedims(dsignal))
     # sum results
@@ -108,7 +108,7 @@ function echos_to_signal(::CPUProcesses, dechos::DArray, dparameters::DArray, tr
 end
 
 """
-    echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+    magnetization_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
 
 If `to_sample_point` has been defined for the provided trajectory, this (generic but not optimized)
 function computes the signal at timepoint `t` for all receive coils. It does so by computing
@@ -121,7 +121,7 @@ Better performance can likely be achieved by incorporating more trajectory-speci
 together with different loop orders.
 """
 
-@inline function echos_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
+@inline function magnetization_to_signal!(signal, t, echos, parameters, trajectory, coil_sensitivities)
 
     # compute readout and sample indices for time point t
     readout, sample = _get_readout_and_sample_idx(trajectory, t)

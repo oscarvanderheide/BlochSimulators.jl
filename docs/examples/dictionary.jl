@@ -35,17 +35,17 @@ println("Length parameters: $(length(parameters))")
 # calls are significantly faster
 # 
 # First, we simply simulate a dictionary using single-threaded CPU mode:
-@time dictionary = simulate_echos(CPU1(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPU1(), sequence, parameters);
 # Note that the first time a function is called, Julia's JIT compiler 
 # performs a compilation procedure. The second time a functio is called
 # with arguments of similar types, the pre-compiled version is called immediatly.
-@time dictionary = simulate_echos(CPU1(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPU1(), sequence, parameters);
 
 # To use multiple threads, Julia must be started with the `--threads=auto`
 # flag (or some integer instead of `auto`). Then, we can simulate in a 
 # multi-threaded fashion with the following syntax:
 println("Current number of threads: $(Threads.nthreads())")
-@time dictionary = simulate_echos(CPUThreads(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPUThreads(), sequence, parameters);
 
 # For distributed CPU mode, use the Distribute packages (ships with Julia)
 # to add workers first
@@ -64,7 +64,7 @@ addprocs(4, exeflags="--project=.")
 @everywhere using BlochSimulators
 
 println("Current number of workers: $(nworkers())")
-@time dictionary = simulate_echos(CPUProcesses(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPUProcesses(), sequence, parameters);
 
 # To perform simulations on GPU, we first convert the sequence and parameters
 # to single precision and then send them to the gpu
@@ -76,14 +76,14 @@ cu_parameters = parameters |> f32 |> gpu;
 # on GPU, can take some time.
 println("Active CUDA device:"); BlochSimulators.CUDA.device()
 
-@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 # Call the pre-compiled version
-@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 
 # Increase the number of parameters:
 cu_parameters = rand(T₁T₂, 500_000) |> f32 |> gpu
 
-@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 
 
 

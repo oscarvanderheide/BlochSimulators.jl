@@ -39,8 +39,8 @@ calls are significantly faster
 First, we simply simulate a dictionary using single-threaded CPU mode:
 
 ````julia
-@time dictionary = simulate_echos(CPU1(), sequence, parameters);
-@time dictionary = simulate_echos(CPU1(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPU1(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPU1(), sequence, parameters);
 ````
 
 To use multiple threads, Julia must be started with the `--threads=auto`
@@ -48,8 +48,8 @@ flag (or some integer instead of `auto`). Then, we can simulate in a
 multi-threaded fashion with the following syntax:
 
 ````julia
-@time dictionary = simulate_echos(CPUThreads(), sequence, parameters);
-@time dictionary = simulate_echos(CPUThreads(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPUThreads(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPUThreads(), sequence, parameters);
 ````
 
 For distributed CPU mode, use the Distribute packages (ships with Julia)
@@ -75,8 +75,8 @@ and then start a distributed dictionary generation with:
 ````julia
 @everywhere using BlochSimulators
 
-@time dictionary = simulate_echos(CPUProcesses(), sequence, parameters);
-@time dictionary = simulate_echos(CPUProcesses(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPUProcesses(), sequence, parameters);
+@time dictionary = simulate_magnetization(CPUProcesses(), sequence, parameters);
 ````
 
 To perform simulations on GPU, we first convert the sequence and parameters
@@ -86,8 +86,8 @@ to single precision and then send them to the gpu
 cu_sequence = sequence |> f32 |> gpu;
 cu_parameters = parameters |> f32 |> gpu;
 
-@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
-@time dictionary = simulate_echos(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
+@time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 ````
 
 ---

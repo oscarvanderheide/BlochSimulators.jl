@@ -114,7 +114,7 @@ resource = CUDALibs()
 compute magnetization at echo times in all voxels
 
 ````julia
-CUDA.@time echos = simulate_echos(resource, sequence, parameters);
+CUDA.@time echos = simulate_magnetization(resource, sequence, parameters);
 ````
 
 apply phase encoding (typically only for Cartesian trajectories)
@@ -126,7 +126,7 @@ CUDA.@time phase_encoding!(echos, trajectory, parameters)
 compute signal from (phase-encoded) magnetization at echo times
 
 ````julia
-CUDA.@time signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities);
+CUDA.@time signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities);
 
 signal = collect(signal)
 ````

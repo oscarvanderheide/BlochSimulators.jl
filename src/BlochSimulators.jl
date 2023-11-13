@@ -22,14 +22,14 @@ module BlochSimulators
     # To perform simulations we need tissue parameters as inputs. 
     # Supported combinations of tissue parameters are defined 
     # in tissueparameters.jl
-    include("parameters/tissueparameters.jl")
+    include("interfaces/tissueparameters.jl")
 
     export AbstractTissueParameters, hasB₁, hasB₀
     
     # Informal interface for sequence implementations. By convention,
     # a sequence::BlochSimulator is used to simulate magnetization at
     # echo times only.
-    include("sequences/_interface.jl")
+    include("interfaces/sequences.jl")
 
     export BlochSimulator, IsochromatSimulator, EPGSimulator
 
@@ -59,7 +59,7 @@ module BlochSimulators
     # a sequence::BlochSimulator is used to simulate magnetization at echo times
     # only and a trajectory::AbstractTrajectory is used to simulate
     # the magnetization at other readout times.
-    include("trajectories/_interface.jl")
+    include("interfaces/trajectories.jl")
 
     # Currently included example trajectories:
     include("../examples/trajectories/cartesian.jl")
@@ -78,9 +78,9 @@ module BlochSimulators
     # # ComputationalResources is used to dispatch on the different computational resources.
 
     # # Main function to call a sequence simulator with a set of input parameters are defined in simulate.jl
-    include("simulate/echos.jl")
+    include("simulate/magnetization.jl")
     include("simulate/signal.jl")
 
-    export simulate_echos, simulate_signal, echos_to_signal, phase_encoding!
+    export simulate_magnetization, simulate_signal, magnetization_to_signal, phase_encoding!
 
 end # module

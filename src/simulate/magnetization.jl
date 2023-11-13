@@ -1,5 +1,5 @@
 """
-    simulate_echos(resource, sequence, parameters)
+    simulate_magnetization(resource, sequence, parameters)
 
 Simulate the magnetization at echo times (without any spatial encoding gradients applied)
 for all combinations of tissue parameters contained in `parameters`.
@@ -15,15 +15,15 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 - `output::AbstractArray`: Array of size (output_dimensions(sequence), length(parameters)) containing the
     magnetization at echo times for all combinations of input tissue parameters.
 """
-function simulate_echos(resource, sequence, parameters) end
+function simulate_magnetization(resource, sequence, parameters) end
 
 """
-    simulate_echos(::CPU1, sequence, parameters)
+    simulate_magnetization(::CPU1, sequence, parameters)
 
 Perform simulations on a single CPU by looping over all entries of `parameters`
 and performing Bloch simulations for each combination of tissue parameters.
 """
-function simulate_echos(::CPU1, sequence, parameters)
+function simulate_magnetization(::CPU1, sequence, parameters)
 
     # intialize array to store echos for each voxel
     output = _allocate_output(CPU1(), sequence, parameters)
@@ -35,20 +35,20 @@ function simulate_echos(::CPU1, sequence, parameters)
     # loop over voxels
     for voxel ∈ eachindex(parameters)
         # run simulation for voxel
-        simulate_echos!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
+        simulate_magnetization!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
     end
 
     return output
 end
 
 """
-    simulate_echos(::CPUThreads, sequence, parameters)
+    simulate_magnetization(::CPUThreads, sequence, parameters)
 
 Perform simulations by looping over all entries of `parameters` in a
 multi-threaded fashion. See the [Julia documentation](https://docs.julialang.org/en/v1/manual/multi-threading/)
 for more details on how to launch Julia with multiple threads of execution.
 """
-function simulate_echos(::CPUThreads, sequence, parameters)
+function simulate_magnetization(::CPUThreads, sequence, parameters)
 
     # intialize array to store echos for each voxel
     output = _allocate_output(CPUThreads(), sequence, parameters)
@@ -60,37 +60,37 @@ function simulate_echos(::CPUThreads, sequence, parameters)
         # initialize state that gets updated during time integration
         state = initialize_states(CPUThreads(), sequence)
         # run simulation for voxel
-        simulate_echos!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
+        simulate_magnetization!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
     end
 
     return output
 end
 
 """
-    simulate_echos(::CPUProcesses, sequence, dparameters::DArray)
+    simulate_magnetization(::CPUProcesses, sequence, dparameters::DArray)
 
 Perform simulations using multiple, distributed CPUs. See the [Julia documentation](https://docs.julialang.org/en/v1/manual/distributed-computing/) and the [DistributedArrays](https://github.com/JuliaParallel/DistributedArrays.jl) package
 for more details on how to use Julia with multiple workers.
 """
-function simulate_echos(::CPUProcesses, sequence, dparameters::DArray)
+function simulate_magnetization(::CPUProcesses, sequence, dparameters::DArray)
     # DArrays are from the package DistributedArrays.
     # With [:lp] the local part of of such an array is used on a worker
-    doutput = @sync [@spawnat p simulate_echos(CPU1(), sequence, dparameters[:lp]) for p in workers()]
+    doutput = @sync [@spawnat p simulate_magnetization(CPU1(), sequence, dparameters[:lp]) for p in workers()]
     # On each worker, a part of the echos array is now computed.
     # Turn it into a single DArray with the syntax below
     return DArray(permutedims(doutput))
 end
 
 # If parameters are provided as a regular array instead of a DistributedArray, distribute them first
-simulate_echos(resource::CPUProcesses, sequence, parameters) = simulate_echos(resource, sequence, distribute(parameters))
+simulate_magnetization(resource::CPUProcesses, sequence, parameters) = simulate_magnetization(resource, sequence, distribute(parameters))
 
 """
-    simulate_echos(::CUDALibs, sequence, parameters::CuArray)
+    simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
 Perform simulations on NVIDIA GPU hardware by making use of the [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) package.
 Each thread perform Bloch simulations for a single entry of the `parameters` array.
 """
-function simulate_echos(::CUDALibs, sequence, parameters::CuArray)
+function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
     # intialize array to store echos for each voxel
     output = _allocate_output(CUDALibs(), sequence, parameters)
@@ -111,7 +111,7 @@ function simulate_echos(::CUDALibs, sequence, parameters::CuArray)
 
         if voxel <= length(parameters)
             # run simulation for voxel
-            simulate_echos!(view(output,:,voxel), sequence, states, parameters[voxel])
+            simulate_magnetization!(view(output,:,voxel), sequence, states, parameters[voxel])
         end
 
         return nothing
@@ -126,7 +126,7 @@ function simulate_echos(::CUDALibs, sequence, parameters::CuArray)
 end
 
 # If parameters are not provided as CuArray, send them (and sequence struct) to gpu first
-simulate_echos(resource::CUDALibs, sequence, parameters) = simulate_echos(resource, gpu(sequence), gpu(parameters))
+simulate_magnetization(resource::CUDALibs, sequence, parameters) = simulate_magnetization(resource, gpu(sequence), gpu(parameters))
 
 
 """

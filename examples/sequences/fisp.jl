@@ -40,7 +40,7 @@ output_eltype(sequence::FISP) = unitless(eltype(sequence.RF_train))
 Ω_eltype(sequence::FISP) = unitless(eltype(sequence.RF_train))
 
 # Sequence implementation
-@inline function simulate_echos!(echos, sequence::FISP, Ω, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(echos, sequence::FISP, Ω, p::AbstractTissueParameters)
 
     T₁, T₂ = p.T₁, p.T₂
     TR, TE, TI = sequence.TR, sequence.TE, sequence.TI

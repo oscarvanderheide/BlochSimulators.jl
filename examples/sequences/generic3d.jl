@@ -26,7 +26,7 @@ export Generic3D
 output_dimensions(sequence::Generic3D) = sum(sequence.sample)
 output_eltype(sequence::Generic3D) = Isochromat{eltype(sequence.GR)}
 
-@inline function simulate_echos!(output, sequence::Generic3D{T}, m, (p::AbstractTissueParameters)) where T
+@inline function simulate_magnetization!(output, sequence::Generic3D{T}, m, (p::AbstractTissueParameters)) where T
 
     Δt = sequence.Δt
     GR = sequence.GR

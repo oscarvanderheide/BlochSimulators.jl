@@ -51,7 +51,7 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 Ω_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 
 # Sequence implementation
-@inline function simulate_echos!(echos, sequence::FISP3D, Ω, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(echos, sequence::FISP3D, Ω, p::AbstractTissueParameters)
 
     # Slab profile is simulated by modifying the B₁ value of parameters depending on their z-location
 

@@ -80,7 +80,7 @@ Pages   = ["trajectories/cartesian.jl", "trajectories/radial.jl", "trajectories/
 
 ## Dictionary Simulation
 ```@docs
-simulate_echos(resource, sequence, parameters)
+simulate_magnetization(resource, sequence, parameters)
 ```
 
 ```@autodocs

@@ -40,19 +40,19 @@ Note that the (discretized) signal equation closely resembles a Discrete Fourier
 
 ## Simulating magnetization at echo times
 
-BlochSimulators supports two different models for performing Bloch simulations: the individual isochromat model and the extended phase graph model. For both models, basic operator functions are implemented (see [`src/operators/isochromat.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/isochromat.jl) and [`src/operators/epg.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/epg.jl)) in a type-stable and non-allocating fashion. By combining these operators, simulators for entire pulse sequences can be assembled. To this end, a user must define a new `Struct` that is a subtype of either `IsochromatSimulator` or `EPGSimulator` with fields that are necessary to describe the pulse sequence (e.g. flip angle(s), TR, TE, etc.). A method must then be added for this new type to the `simulate_echos!` function which, by combining the fields of the struct with the basic operators, implements the magnetization response of the sequence. See [`src/sequences/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/sequences/_interface.jl) for additional information and requirements.
+BlochSimulators supports two different models for performing Bloch simulations: the individual isochromat model and the extended phase graph model. For both models, basic operator functions are implemented (see [`src/operators/isochromat.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/isochromat.jl) and [`src/operators/epg.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/epg.jl)) in a type-stable and non-allocating fashion. By combining these operators, simulators for entire pulse sequences can be assembled. To this end, a user must define a new `Struct` that is a subtype of either `IsochromatSimulator` or `EPGSimulator` with fields that are necessary to describe the pulse sequence (e.g. flip angle(s), TR, TE, etc.). A method must then be added for this new type to the `simulate_magnetization!` function which, by combining the fields of the struct with the basic operators, implements the magnetization response of the sequence. See [`src/sequences/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/sequences/_interface.jl) for additional information and requirements.
 
 To perform simulations, tissue parameter inputs must be provided. Custom structs for different combinations of tissue parameters are introduced in this package (all of which are subtypes of `AbstractTissueParameters`). See [`src/parameters/tissueparameters.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/parameters/tissueparameters.jl) for more information.
 
 Given a `sequence` struct together with a set of input parameters  for each voxel (currently the parameters must be an `::AbstractArray{<:AbstractTissueParameters}`), the magnetization at echo times in each voxel is obtained with the function call
 
-`echos = simulate_echos(resource, sequence, parameters)`,
+`echos = simulate_magnetization(resource, sequence, parameters)`,
 
 where `resource` is either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()` (see [ComputationalResources.jl](https://github.com/timholy/ComputationalResources.jl)). This function can also be used in the context of MR Fingerprinting to generate a dictionary.
 
 ## Simulating the MR signal
 
-To compute the MR signal ``s`` given the magnetization at echo times in all voxels, the `echos_to_signal` function is used (see  [`src/simulate/signal.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/simulate/signal.jl)). By default, for each timepoint `t` a function `echos_to_signal!` is called internally which computes the magnetization at sample time `t` for each voxel and evaluates the volume integral
+To compute the MR signal ``s`` given the magnetization at echo times in all voxels, the `magnetization_to_signal` function is used (see  [`src/simulate/signal.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/simulate/signal.jl)). By default, for each timepoint `t` a function `magnetization_to_signal!` is called internally which computes the magnetization at sample time `t` for each voxel and evaluates the volume integral
 
 ``\sum_{j=1}^{N_v} c(\vec{r}_j)m(\vec{r}_j,t)e^{-2\pi i \vec{k}(t)\cdot \vec{r}_j} \Delta V``.
 
@@ -64,13 +64,13 @@ for sample points other than the echo times. See [`src/trajectories/_interface.j
 
 Given the magnetization at echo times in all voxels (stored in ``echos``), the signal ``s`` at sample times is computed with the function call
 
-`signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)`.
+`signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)`.
 
 Alternatively, the signal can be computed with the `simulate` function as
 
 `signal = simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)`.
 
-We note that the implementation of `to_sample_point` for a new trajectory should be type-stable and non-allocating. In that case, the signal computation will likely run on different computational resources following the `echos_to_signal` implementation. In the default implementation `echos_to_signal`, different compute threads (i.e. when running in multi-threaded mode or in GPU) are assigned to different sample times. The benefit of this approach is that no communication between threads is required. However, from a memory-access point-of-view this approach may not necessarily be optimal. The optimal approach may depend on the actual gradient trajectory and computational resource. If more "optimal" implementations are discovered, methods may be be added `echos_to_signal` to use more optimized implementations for specific combinations of trajectories and resources.
+We note that the implementation of `to_sample_point` for a new trajectory should be type-stable and non-allocating. In that case, the signal computation will likely run on different computational resources following the `magnetization_to_signal` implementation. In the default implementation `magnetization_to_signal`, different compute threads (i.e. when running in multi-threaded mode or in GPU) are assigned to different sample times. The benefit of this approach is that no communication between threads is required. However, from a memory-access point-of-view this approach may not necessarily be optimal. The optimal approach may depend on the actual gradient trajectory and computational resource. If more "optimal" implementations are discovered, methods may be be added `magnetization_to_signal` to use more optimized implementations for specific combinations of trajectories and resources.
 
 ![BlochSimulators.jl graphical overview ](./overview.pdf)
 

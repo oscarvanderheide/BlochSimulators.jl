@@ -296,10 +296,10 @@ end
     sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂(rand(), rand()) for _ = 1:1000]
 
-    echos_cpu1 = simulate_echos(CPU1(), sequence, parameters)
+    echos_cpu1 = simulate_magnetization(CPU1(), sequence, parameters)
 
     # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
-    echos_cputhreads = simulate_echos(CPUThreads(), sequence, parameters)
+    echos_cputhreads = simulate_magnetization(CPUThreads(), sequence, parameters)
     @test echos_cpu1 ≈ echos_cputhreads
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
@@ -309,13 +309,13 @@ end
         @everywhere using BlochSimulators, ComputationalResources
     end
 
-    echos_cpuprocesses = simulate_echos(CPUProcesses(), sequence, parameters)
+    echos_cpuprocesses = simulate_magnetization(CPUProcesses(), sequence, parameters)
 
     @test echos_cpu1 ≈ convert(Array,echos_cpuprocesses)
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
-        echos_cudalibs = simulate_echos(CUDALibs(), gpu(sequence), gpu(parameters)) |> collect
+        echos_cudalibs = simulate_magnetization(CUDALibs(), gpu(sequence), gpu(parameters)) |> collect
         @test echos_cpu1 ≈ echos_cudalibs
     end
 
@@ -328,7 +328,7 @@ end
     sequence = FISP(nTR)
     parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, 0.0, 0.0)]
 
-    d = simulate_echos(CPU1(), sequence, parameters)
+    d = simulate_magnetization(CPU1(), sequence, parameters)
 
     # Use some trajectory to simulate signal
     nr, ns = 100, 40
@@ -422,7 +422,7 @@ end
         coil_sensitivities = fill(SVector(complex(1.0)), nv)
         resource = CPU1()
 
-        signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
         signal = only.(signal)
 
         @test signal == fill(nv, nr*ns)
@@ -431,7 +431,7 @@ end
 
         parameters = fill(T₁T₂ρˣρʸxy(rand(),rand(),0.0,0.0,rand(), rand()), nv)
 
-        signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
         signal = only.(signal)
 
         @test signal == zeros(nr*ns) 
@@ -441,7 +441,7 @@ end
         parameters = fill(T₁T₂ρˣρʸxy(rand(6)...), nv)
         nc = 4
         coil_sensitivities = zeros(SVector{nc}, nv)
-        signal = echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
 
         @test signal == zeros(SVector{nc}, nr*ns) 
 
