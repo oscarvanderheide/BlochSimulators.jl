@@ -94,7 +94,7 @@ function output_dimensions(::BlochSimulator)
 end
 
 """
-    simulate_magnetization!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) end
+    simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters) end
 
 For each `<:BlochSimulator`, a method should be added to this function that
 implements the actual pulse sequence using information contained in the sequence struct
@@ -103,8 +103,8 @@ as well as GPU compatibility it is important that the implementation is type-sta
 non-allocating.
 
 # Arguments
-- `echos`: Pre-allocated array with `size(echos) = output_dimensions(sequence)` and
-    `eltype(echos) = output_eltype(sequence)` to store the output of the simulation.
+- `magnetization`: Pre-allocated array with `size(magnetization) = output_dimensions(sequence)` and
+    `eltype(magnetization) = output_eltype(sequence)` to store the output of the simulation.
 - `sequence`: Sequence struct containing fields that are used to implement the actual pulse
     sequence.
 - `state`: Either an `Isochromat` or `EPGStates`, depending on which model is used.
@@ -112,7 +112,7 @@ non-allocating.
     to the simulation (e.g. `T₁T₂`)
 
 """
-function simulate_magnetization!(echos, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
+function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
     @warn "Must implement simulate_magnetization!"
 end
 

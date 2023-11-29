@@ -57,19 +57,19 @@ export CartesianTrajectory
 @inline nreadouts(t::SpokesTrajectory) = t.nreadouts
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
-function phase_encoding!(echos, trajectory::CartesianTrajectory, parameters)
+function phase_encoding!(magnetization, trajectory::CartesianTrajectory, parameters)
     y  = map(p->p.y, parameters) |> vec
     kʸ = imag.(trajectory.k_start_readout)
-    @. echos *= exp(im * kʸ * y')
+    @. magnetization *= exp(im * kʸ * y')
     return nothing
 end
 
 # perhaps do this with metaprogramming instead (iteratate over all subtypes of AbstractTrajectory)
-function phase_encoding!(echos::DArray, trajectory::CartesianTrajectory, parameters::DArray)
+function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory, parameters::DArray)
 
     @sync for p in workers()
         @async begin
-            @spawnat p phase_encoding!(localpart(echos), trajectory, localpart(parameters))
+            @spawnat p phase_encoding!(localpart(magnetization), trajectory, localpart(parameters))
         end
     end
 

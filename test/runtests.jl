@@ -296,11 +296,11 @@ end
     sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂(rand(), rand()) for _ = 1:1000]
 
-    echos_cpu1 = simulate_magnetization(CPU1(), sequence, parameters)
+    magnetization_cpu1 = simulate_magnetization(CPU1(), sequence, parameters)
 
     # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
-    echos_cputhreads = simulate_magnetization(CPUThreads(), sequence, parameters)
-    @test echos_cpu1 ≈ echos_cputhreads
+    magnetization_cputhreads = simulate_magnetization(CPUThreads(), sequence, parameters)
+    @test magnetization_cpu1 ≈ magnetization_cputhreads
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
     # and check if outcome is the same
@@ -309,14 +309,14 @@ end
         @everywhere using BlochSimulators, ComputationalResources
     end
 
-    echos_cpuprocesses = simulate_magnetization(CPUProcesses(), sequence, parameters)
+    magnetization_cpuprocesses = simulate_magnetization(CPUProcesses(), sequence, parameters)
 
-    @test echos_cpu1 ≈ convert(Array,echos_cpuprocesses)
+    @test magnetization_cpu1 ≈ convert(Array,magnetization_cpuprocesses)
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
-        echos_cudalibs = simulate_magnetization(CUDALibs(), gpu(sequence), gpu(parameters)) |> collect
-        @test echos_cpu1 ≈ echos_cudalibs
+        magnetization_cudalibs = simulate_magnetization(CUDALibs(), gpu(sequence), gpu(parameters)) |> collect
+        @test magnetization_cpu1 ≈ magnetization_cudalibs
     end
 
 end
@@ -410,19 +410,19 @@ end
 
 @testset "Signal simulation sanity checks" begin
 
-    # if echos .= 1, x and y .= 0, coil_sensitivities .= 1, T₂ .= Inf, 
+    # if magnetization .= 1, x and y .= 0, coil_sensitivities .= 1, T₂ .= Inf, 
     # then signal should simply be the nr of voxels at all time points
         nv = 100 # voxels
         nr = 100 # readouts
         ns = 10  # samples per readout
 
-        echos = complex.(ones(nr,nv))
+        magnetization = complex.(ones(nr,nv))
         parameters = fill(T₁T₂ρˣρʸxy(Inf,Inf,1.0,0.0,0.0,0.0), nv)
         trajectory = CartesianTrajectory(nr,ns)
         coil_sensitivities = fill(SVector(complex(1.0)), nv)
         resource = CPU1()
 
-        signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
         signal = only.(signal)
 
         @test signal == fill(nv, nr*ns)
@@ -431,7 +431,7 @@ end
 
         parameters = fill(T₁T₂ρˣρʸxy(rand(),rand(),0.0,0.0,rand(), rand()), nv)
 
-        signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
         signal = only.(signal)
 
         @test signal == zeros(nr*ns) 
@@ -441,7 +441,7 @@ end
         parameters = fill(T₁T₂ρˣρʸxy(rand(6)...), nv)
         nc = 4
         coil_sensitivities = zeros(SVector{nc}, nv)
-        signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+        signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
 
         @test signal == zeros(SVector{nc}, nr*ns) 
 

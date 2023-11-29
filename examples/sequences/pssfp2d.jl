@@ -40,7 +40,7 @@ output_dimensions(sequence::pSSFP2D) = length(sequence.RF_train)
 output_eltype(sequence::pSSFP2D) = eltype(sequence.RF_train)
 
 # Sequence implementation
-@inline function simulate_magnetization!(echos, sequence::pSSFP2D, m, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(magnetization, sequence::pSSFP2D, m, p::AbstractTissueParameters)
 
     T₁,T₂ = p.T₁, p.T₂
 
@@ -99,7 +99,7 @@ output_eltype(sequence::pSSFP2D) = eltype(sequence.RF_train)
             # slice select prephaser, B₀ rotation, T₂ decay and T₁ regrowth until TE
             m = precess(m,z)
             # sample magnetization at echo time (sum over slice direction)
-            sample_transverse!(echos, TR, m)
+            sample_transverse!(magnetization, TR, m)
             # slice select prephaser, B₀ rotation, T₂ decay and T₁ regrowth until next RF
             m = precess(m,z)
         end

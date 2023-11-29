@@ -25,7 +25,7 @@ and performing Bloch simulations for each combination of tissue parameters.
 """
 function simulate_magnetization(::CPU1, sequence, parameters)
 
-    # intialize array to store echos for each voxel
+    # intialize array to store magnetization for each voxel
     output = _allocate_output(CPU1(), sequence, parameters)
 
     # initialize state that gets updated during time integration
@@ -50,7 +50,7 @@ for more details on how to launch Julia with multiple threads of execution.
 """
 function simulate_magnetization(::CPUThreads, sequence, parameters)
 
-    # intialize array to store echos for each voxel
+    # intialize array to store magnetization for each voxel
     output = _allocate_output(CPUThreads(), sequence, parameters)
 
     # voxel dimension of output array
@@ -76,7 +76,7 @@ function simulate_magnetization(::CPUProcesses, sequence, dparameters::DArray)
     # DArrays are from the package DistributedArrays.
     # With [:lp] the local part of of such an array is used on a worker
     doutput = @sync [@spawnat p simulate_magnetization(CPU1(), sequence, dparameters[:lp]) for p in workers()]
-    # On each worker, a part of the echos array is now computed.
+    # On each worker, a part of the magnetization array is now computed.
     # Turn it into a single DArray with the syntax below
     return DArray(permutedims(doutput))
 end
@@ -92,7 +92,7 @@ Each thread perform Bloch simulations for a single entry of the `parameters` arr
 """
 function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
-    # intialize array to store echos for each voxel
+    # intialize array to store magnetization for each voxel
     output = _allocate_output(CUDALibs(), sequence, parameters)
 
     # compute nr of threadblocks to be used on GPU
@@ -101,7 +101,7 @@ function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
     nr_blocks = cld(nr_voxels, THREADS_PER_BLOCK)
 
     # define kernel function to be run by each thread on gpu
-    echos_kernel!(output, sequence, parameters) = begin
+    magnetization_kernel!(output, sequence, parameters) = begin
 
         # get voxel index
         voxel = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -119,7 +119,7 @@ function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
     # launch kernels
     CUDA.@sync begin
-        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK echos_kernel!(output, sequence, parameters)
+        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_kernel!(output, sequence, parameters)
     end
 
     return output

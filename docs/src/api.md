@@ -85,7 +85,7 @@ simulate_magnetization(resource, sequence, parameters)
 
 ```@autodocs
 Modules = [BlochSimulators]
-Pages   = ["simulate/echos.jl"]
+Pages   = ["simulate/magnetization.jl"]
 ```
 
 ## Signal Simulation

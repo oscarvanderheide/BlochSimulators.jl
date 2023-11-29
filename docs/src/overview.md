@@ -46,7 +46,7 @@ To perform simulations, tissue parameter inputs must be provided. Custom structs
 
 Given a `sequence` struct together with a set of input parameters  for each voxel (currently the parameters must be an `::AbstractArray{<:AbstractTissueParameters}`), the magnetization at echo times in each voxel is obtained with the function call
 
-`echos = simulate_magnetization(resource, sequence, parameters)`,
+`magnetization = simulate_magnetization(resource, sequence, parameters)`,
 
 where `resource` is either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()` (see [ComputationalResources.jl](https://github.com/timholy/ComputationalResources.jl)). This function can also be used in the context of MR Fingerprinting to generate a dictionary.
 
@@ -62,9 +62,9 @@ In order to evaluate the above expression, information from the gradient traject
 
 for sample points other than the echo times. See [`src/trajectories/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/_interface.jl) for more details. Example implementations for [Cartesian](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/cartsian.jl) and [radial](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/radial.jl) trajectories are provided.
 
-Given the magnetization at echo times in all voxels (stored in ``echos``), the signal ``s`` at sample times is computed with the function call
+Given the magnetization at echo times in all voxels (stored in ``magnetization``), the signal ``s`` at sample times is computed with the function call
 
-`signal = magnetization_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)`.
+`signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)`.
 
 Alternatively, the signal can be computed with the `simulate` function as
 

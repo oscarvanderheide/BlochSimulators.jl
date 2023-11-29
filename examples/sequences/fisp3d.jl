@@ -51,7 +51,7 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 Ω_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 
 # Sequence implementation
-@inline function simulate_magnetization!(echos, sequence::FISP3D, Ω, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(magnetization, sequence::FISP3D, Ω, p::AbstractTissueParameters)
 
     # Slab profile is simulated by modifying the B₁ value of parameters depending on their z-location
 
@@ -95,7 +95,7 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
             regrowth!(Ω, E₁ᵀᴱ)
             # sample F0+
             if (repetition == sequence.repetitions) # sample at the last repetition
-                sample_transverse!(echos, TR, Ω)
+                sample_transverse!(magnetization, TR, Ω)
             end
             # T2 decay F states, T1 decay Z states, B0 rotation until next RF excitation
             rotate_decay!(Ω, E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ, eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾)

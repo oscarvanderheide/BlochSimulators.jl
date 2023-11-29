@@ -13,12 +13,12 @@ export AbstractTrajectory
 ### Functions that must be implemented for each trajectory.
 
 """
-    phase_encoding!(echos, trajectory::AbstractTrajectory, parameters)
+    phase_encoding!(magnetization, trajectory::AbstractTrajectory, parameters)
 
 For each `::AbstractTrajectory`, a method should be added to this function if
 it does any kind of phase encoding (so far Cartesian only).
 """
-function phase_encoding!(echos, trajectory::AbstractTrajectory, parameters)
+function phase_encoding!(magnetization, trajectory::AbstractTrajectory, parameters)
     println("No phase encoding for this trajectory")
     nothing
 end
