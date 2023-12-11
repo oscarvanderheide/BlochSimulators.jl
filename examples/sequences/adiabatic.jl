@@ -1,9 +1,19 @@
-struct AdiabaticInversion{T<:Real, V<:AbstractVector} <: IsochromatSimulator{T}
-    γΔtA::V # Time-dependent amplitude modulation
-    Δω::V # Time-dependent frequency modulation
-    Δt::T # Time discretization step, assumed constant
-end
+"""
+    AdiabaticInversion{T<:Real, V<:AbstractVector} <: IsochromatSimulator{T}
 
+This struct is used to simulate an adiabatic inversion pulse. This struct itself
+could be used as field in other sequence structs. 
+
+# Fields 
+- `γΔtA::V`:  # Time-dependent amplitude modulation.
+- `Δω::V` # Time-dependent frequency modulation
+- `Δt::T`: Time discretization step, assumed constant
+"""
+struct AdiabaticInversion{T<:Real, V<:AbstractVector} <: IsochromatSimulator{T}
+    γΔtA::V
+    Δω::V
+    Δt::T
+end
 # Methods needed to allocate an output array of the correct size and type
 output_dimensions(sequence::AdiabaticInversion) = 1 # Only record the magnetization at the end of the inversion pulse
 output_eltype(sequence::AdiabaticInversion{T,V}) where {T,V} = Isochromat{T}
