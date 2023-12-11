@@ -9,6 +9,10 @@ can be modified per voxel instead. For 3D, the sequence will likely be repeated 
 a certain number of repetitions (usually five is enough), a "hyper" steady state is reached. We only sample
 in this hyper steady state.
 
+Within each TR, a single time steps is used to simulate the RF excitation. Then, in one time step we go from the
+end of the RF excitation to the echo time (applying T₁ and T₂ decay, T₁ regrowth and B₀ rotation), and again
+in one time step from the echo time to the start of the next RF excitation.
+
 # Fields
 - `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and
     angle.(RF_train) should be the RF phases in degrees.
