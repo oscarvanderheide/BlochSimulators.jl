@@ -1,8 +1,7 @@
 """
-    pSSFP2D{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSimulator{T}
+    pSSFP2D{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}},V<:Number} <: IsochromatSimulator{T}
 
-This struct is used to simulate a balanced pSSFP2D sequence with varying flip angle scheme and adiabatic inversion
-prepulse based on isochromat model. The TR and TE are fixed throughout the sequence. Slice profile correction
+This struct is used to simulate a inversion-recovery, gradient-balanced transient-state sequence with varying flip angle scheme based on the isochromat model. The TR and TE are fixed throughout the sequence. The TR and TE are fixed throughout the sequence. Slice profile correction
 is done by discretizing the RF excitation waveform in time and using multiple `Isochromat`s with different
 positions along the slice direction (`z`) per voxel. The sequence also uses an 'α/2' prepulse after the inversion.
 
@@ -14,16 +13,16 @@ in one time step from the echo time to the start of the next RF excitation.
 - `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and
     angle.(RF_train) should be the RF phases in degrees.
 - `TR::T`: Repetition time in seconds, assumed constant during the sequence
-- `γΔtRF::SVector{N}{T}`: Time-discretized RF waveform, normalized to flip angle of 1 degree
+- `γΔtRF::SVector{N}{V}`: Time-discretized RF waveform, normalized to flip angle of 1 degree
 - `Δt::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}`: Time interval for each sample of excitation pulse (ex),
     inversion delay (inv) and time between RF and TE (pr)
 - `γΔtGRz::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}`: Slice select gradients for ex, inv and pr
 - `z::SVector{M}{T}` # Vector with different positions along the slice direction.
 """
-struct pSSFP2D{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}}} <: IsochromatSimulator{T}
+struct pSSFP2D{T<:AbstractFloat,N,M,U<:AbstractVector{Complex{T}},V<:Number} <: IsochromatSimulator{T}
     RF_train::U
     TR::T
-    γΔtRF::SVector{N}{T}
+    γΔtRF::SVector{N}{V}
     Δt::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}
     γΔtGRz::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}
     z::SVector{M}{T}
