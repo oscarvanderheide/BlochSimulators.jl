@@ -90,6 +90,10 @@ CUDA.@time phase_encoding!(magnetization, trajectory, parameters)
 # compute signal from (phase-encoded) magnetization at echo times
 CUDA.@time signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
 
+# Alternatively, use the simulate_signal function 
+# CUDA.@time signal = simulate_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
+
+
 signal = collect(signal)
 
 # Let's look at fft images of the signals from the two different coils

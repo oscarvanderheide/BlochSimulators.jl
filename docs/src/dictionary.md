@@ -13,8 +13,10 @@ for which fields are necessary and which constructors exist)
 
 ````julia
 nTR = 1000; # nr of TRs used in the simulation
-RF_train = LinRange(1,90,nTR) |> collect; # flip angle train
-TR,TE,TI = 0.010, 0.005, 0.100; # repetition time, echo time, inversion delay
+RF_train = range(start=1,stop=90,length=nTR) |> collect; # flip angle train [degrees]
+TR = 0.010 # repetition time [s]
+TE = 0.010 # echo time [s]
+TI = 0.005 # inversion delay [s]
 max_state = 25; # maximum number of configuration states to keep track of
 
 sequence = FISP2D(RF_train, TR, TE, max_state, TI);
@@ -39,7 +41,7 @@ calls are significantly faster
 First, we simply simulate a dictionary using single-threaded CPU mode:
 
 ````julia
-@time dictionary = simulate_magnetization(CPU1(), sequence, parameters);
+# run twice to measure run-time excluding compilation time
 @time dictionary = simulate_magnetization(CPU1(), sequence, parameters);
 ````
 
@@ -48,7 +50,7 @@ flag (or some integer instead of `auto`). Then, we can simulate in a
 multi-threaded fashion with the following syntax:
 
 ````julia
-@time dictionary = simulate_magnetization(CPUThreads(), sequence, parameters);
+# run twice to measure run-time excluding compilation time
 @time dictionary = simulate_magnetization(CPUThreads(), sequence, parameters);
 ````
 
@@ -75,7 +77,7 @@ and then start a distributed dictionary generation with:
 ````julia
 @everywhere using BlochSimulators
 
-@time dictionary = simulate_magnetization(CPUProcesses(), sequence, parameters);
+# run twice to measure run-time excluding compilation time
 @time dictionary = simulate_magnetization(CPUProcesses(), sequence, parameters);
 ````
 
@@ -86,7 +88,7 @@ to single precision and then send them to the gpu
 cu_sequence = sequence |> f32 |> gpu;
 cu_parameters = parameters |> f32 |> gpu;
 
-@time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
+# run twice to measure run-time excluding compilation time
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 ````
 
