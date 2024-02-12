@@ -24,6 +24,9 @@
 
 ## Load packages
 
+    using Pkg
+    Pkg.activate("benchmarks")
+
     using Revise, BenchmarkTools, StaticArrays, ComputationalResources, MAT, Test, JLD2
     using PGFPlotsX, Colors
 
@@ -93,37 +96,35 @@
 
     nTR, nRF = 1120, 25
 
-    single_double_gpu(sequence) = (
-        cpu_f64 = sequence,
-        cpu_f32 = f32(sequence),
-        gpu_f64 = gpu(sequence),
-        gpu_f32 = gpu(f32(sequence))
+    single_double(sequence) = (
+        f64 = sequence,
+        f32 = f32(sequence)
     );
 
-    pssfp2d     = assemble_pssfp2d(nTR, nRF, 1)         |> single_double_gpu;
-    pssfp3d     = assemble_pssfp3d(nTR, nRF)            |> single_double_gpu;
-    generic2d   = pssfp2d_to_generic2d(pssfp2d.cpu_f64) |> single_double_gpu;
-    generic3d   = pssfp3d_to_generic3d(pssfp3d.cpu_f64) |> single_double_gpu;
+    pssfp2d     = assemble_pssfp2d(nTR, nRF, 1)     |> single_double;
+    pssfp3d     = assemble_pssfp3d(nTR, nRF)        |> single_double;
+    generic2d   = pssfp2d_to_generic2d(pssfp2d.f64) |> single_double;
+    generic3d   = pssfp3d_to_generic3d(pssfp3d.f64) |> single_double;
     
 
 ## Run for random parameter combination input to compile and compare output
 
     N = 1
 
-    parameters  = [BlochSimulators.T₁T₂xyz(rand(1.0:0.01:5.0), rand(0.04:0.001:1.0), rand(), rand(), only(pssfp2d.cpu_f64.z)) for _ = 1:N]
+    parameters  = [BlochSimulators.T₁T₂xyz(rand(1.0:0.01:5.0), rand(0.04:0.001:1.0), rand(), rand(), only(pssfp2d.f64.z)) for _ = 1:N]
 
-    hargreaves_input = generic3d_to_hargreaves(generic3d.cpu_f64, parameters);
+    hargreaves_input = generic3d_to_hargreaves(generic3d.f64, parameters);
 
     output_hargreaves       = hargreaves(hargreaves_input)
-    output_generic3d_f64    = simulate_magnetization(CPU1(), generic3d.cpu_f64, parameters);
-    output_generic3d_f32    = simulate_magnetization(CPU1(), generic3d.cpu_f32, f32(parameters));
-    output_generic2d_f64    = simulate_magnetization(CPU1(), generic2d.cpu_f64, parameters);
-    output_generic2d_f32    = simulate_magnetization(CPU1(), generic2d.cpu_f32, f32(parameters));
+    output_generic3d_f64    = simulate_magnetization(CPU1(), generic3d.f64, parameters);
+    output_generic3d_f32    = simulate_magnetization(CPU1(), generic3d.f32, f32(parameters));
+    output_generic2d_f64    = simulate_magnetization(CPU1(), generic2d.f64, parameters);
+    output_generic2d_f32    = simulate_magnetization(CPU1(), generic2d.f32, f32(parameters));
 
-    output_pssfp3d_f64      = simulate_magnetization(CPU1(), pssfp3d.cpu_f64, parameters);
-    output_pssfp3d_f32      = simulate_magnetization(CPU1(), pssfp3d.cpu_f32, f32(parameters));
-    output_pssfp2d_f64      = simulate_magnetization(CPU1(), pssfp2d.cpu_f64, parameters);
-    output_pssfp2d_f32      = simulate_magnetization(CPU1(), pssfp2d.cpu_f32, f32(parameters));
+    output_pssfp3d_f64      = simulate_magnetization(CPU1(), pssfp3d.f64, parameters);
+    output_pssfp3d_f32      = simulate_magnetization(CPU1(), pssfp3d.f32, f32(parameters));
+    output_pssfp2d_f64      = simulate_magnetization(CPU1(), pssfp2d.f64, parameters);
+    output_pssfp2d_f32      = simulate_magnetization(CPU1(), pssfp2d.f32, f32(parameters));
 
     @info "Test whether pSSFP2d (with just one z=0 location) and Generic2D (with same z=0 location) give the same output"
     @test output_pssfp2d_f64 ≈ [complex(m.x,m.y) for m in output_generic2d_f64]
@@ -153,13 +154,13 @@
         println(N)
         parameters_xyz_f64  = [BlochSimulators.T₁T₂xyz(rand(1.0:0.01:5.0), rand(0.04:0.001:1.0), rand(), rand(), rand()) for i in 1:N]
         parameters_xyz_f32  = f32(parameters_xyz_f64)
-        hargreaves_input = generic3d_to_hargreaves(generic3d.cpu_f64, parameters_xyz_f64);
+        hargreaves_input = generic3d_to_hargreaves(generic3d.f64, parameters_xyz_f64);
 
         push!(TIMINGS.hargreaves_f64, @elapsed hargreaves(hargreaves_input))
-        push!(TIMINGS.generic3d_f64, @elapsed simulate_magnetization(CPU1(), generic3d.cpu_f64, parameters_xyz_f64))
-        push!(TIMINGS.generic3d_f32, @elapsed simulate_magnetization(CPU1(), generic3d.cpu_f32, parameters_xyz_f32))
-        push!(TIMINGS.pssfp3d_f64, @elapsed simulate_magnetization(CPU1(), pssfp3d.cpu_f64, parameters_xyz_f64))
-        push!(TIMINGS.pssfp3d_f32, @elapsed simulate_magnetization(CPU1(), pssfp3d.cpu_f32, parameters_xyz_f32))
+        push!(TIMINGS.generic3d_f64, @elapsed simulate_magnetization(CPU1(), generic3d.f64, parameters_xyz_f64))
+        push!(TIMINGS.generic3d_f32, @elapsed simulate_magnetization(CPU1(), generic3d.f32, parameters_xyz_f32))
+        push!(TIMINGS.pssfp3d_f64, @elapsed simulate_magnetization(CPU1(), pssfp3d.f64, parameters_xyz_f64))
+        push!(TIMINGS.pssfp3d_f32, @elapsed simulate_magnetization(CPU1(), pssfp3d.f32, parameters_xyz_f32))
 
     end
 
@@ -221,4 +222,4 @@ p = @pgf Axis(
     # @save "data/TIMINGS_1_isochromat_cpu.jld2" TIMINGS
     # pgfsave("figures/1_isochromat_cpu.pdf", p, dpi=300)
 
-        p
+    p

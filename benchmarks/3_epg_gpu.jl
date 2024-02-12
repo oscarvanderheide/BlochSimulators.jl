@@ -48,6 +48,9 @@
 
 ## Load packages
 
+    using Pkg
+    Pkg.activate("benchmarks")
+
     using Revise, BenchmarkTools, StaticArrays, ComputationalResources
     using MAT, Test, RawArray, DelimitedFiles, LinearAlgebra, JLD2
     using PGFPlotsX, Colors
