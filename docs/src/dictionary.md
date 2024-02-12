@@ -1,6 +1,6 @@
-````julia
 # MR Fingerprinting Dictionary Generation
 
+````julia
 using Pkg; Pkg.activate("docs")
 ````
 

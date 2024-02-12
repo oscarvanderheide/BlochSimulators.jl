@@ -60,7 +60,7 @@ export CartesianTrajectory
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, parameters)
     y  = map(p->p.y, parameters) |> vec
     kʸ = imag.(trajectory.k_start_readout)
-    @. magnetization *= exp(im * kʸ * y')
+    @. magnetization *= exp(im * kʸ' * y)
     return nothing
 end
 

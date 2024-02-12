@@ -1,6 +1,6 @@
-````julia
-# Adiabatic inversion example
+# Adiabatic inversion
 
+````julia
 using Pkg; Pkg.activate("docs")
 ````
 
@@ -58,7 +58,7 @@ parameters = T₁T₂B₀.(1.0,.1, B₀)
 Perform simulations
 
 ````julia
-@time m = simulate_magnetization(CPU1(), sequence, parameters) |> StructArray |> vec
+@time m = simulate_magnetization(CPU1(), sequence, parameters) |> StructArray
 ````
 
 Plot results

@@ -1,4 +1,4 @@
-## Simulate MR Signal
+# # Simulate MR Signal
 
 using Pkg; Pkg.activate("docs")
 
@@ -71,7 +71,7 @@ coil₂ = coil₁';
 
 coil_sensitivities = map(SVector{2}, vec(coil₁), vec(coil₂))
 
-# Now simulate the signal for the sequence, trajectory, phantom and coils on GPU
+# Now we want to simulate the signal for the sequence, trajectory, phantom and coils on GPU
 
 resource = CUDALibs()
 
@@ -83,17 +83,20 @@ coil_sensitivities  = gpu(f32(coil_sensitivities))
 using BlochSimulators.CUDA
 
 resource = CUDALibs()
-# compute magnetization at echo times in all voxels
+
+# For that purpose, we first compute magnetization at echo times in all voxels
 CUDA.@time magnetization = simulate_magnetization(resource, sequence, parameters);
-# apply phase encoding (typically only for Cartesian trajectories)
+
+# Then we apply phase encoding (typically only for Cartesian trajectories)
 CUDA.@time phase_encoding!(magnetization, trajectory, parameters)
-# compute signal from (phase-encoded) magnetization at echo times
+
+# Finally, we compute signal from (phase-encoded) magnetization at echo times
 CUDA.@time signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
 
-# Alternatively, use the simulate_signal function 
-# CUDA.@time signal = simulate_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
+# Alternatively, we can use the simulate_signal function which combines the above three steps into one
+CUDA.@time signal = simulate_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
 
-
+# Send the signal from GPU to CPU
 signal = collect(signal)
 
 # Let's look at fft images of the signals from the two different coils

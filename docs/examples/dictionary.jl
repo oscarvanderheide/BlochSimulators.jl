@@ -1,4 +1,4 @@
-## MR Fingerprinting Dictionary Generation
+# # MR Fingerprinting Dictionary Generation
 
 using Pkg; Pkg.activate("docs")
 
