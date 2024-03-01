@@ -36,7 +36,7 @@ output_eltype(sequence::Generic2D) = Isochromat{eltype(sequence.GR)}
     GR = sequence.GR
     RF = sequence.RF
 
-    γ = 26753.0
+    γ = T(26753.0)
     T₁, T₂ = p.T₁, p.T₂
 
     nr_timesteps = length(Δt)
