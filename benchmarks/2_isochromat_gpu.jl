@@ -5,6 +5,9 @@
 
 ## Load packages
 
+    using Pkg
+    Pkg.activate("benchmarks")
+    
     using Revise, BenchmarkTools, StaticArrays, ComputationalResources, MAT, JLD2, Test
     using PGFPlotsX, Colors
 

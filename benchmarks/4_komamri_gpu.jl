@@ -6,16 +6,20 @@
 
 ## Load packages
 
-using Revise, BenchmarkTools, StaticArrays, ComputationalResources, MAT, Test, JLD2
-using PGFPlotsX, Colors
 
-import BlochSimulators
-import KomaMRI
-import KomaMRI.KomaMRICore
+    using Pkg
+    Pkg.activate("benchmarks")
 
-import BlochSimulators: f32, gpu
+    using Revise, BenchmarkTools, StaticArrays, ComputationalResources, MAT, Test, JLD2
+    using PGFPlotsX, Colors
 
-includet("utilities.jl")
+    import BlochSimulators
+    import KomaMRI
+    import KomaMRI.KomaMRICore
+
+    import BlochSimulators: f32, gpu
+
+    includet("utilities.jl")
 
 ## Setup for benchmark
 
