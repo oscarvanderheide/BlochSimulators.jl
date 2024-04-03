@@ -1,9 +1,7 @@
-# struct RadialTrajectory{T,I,U<:AbstractVector{Complex{T}},V<:AbstractVector{T}} <: SpokesTrajectory
-
 ### Type definition
 
 """
-    RadialTrajectory{T,I,U,V} <: SpokesTrajectory
+    RadialTrajectory{T,I,U,V} <: SpokesTrajectory{T}
 
 Struct that is used to implement a typical radial gradient trajectory.
 The trajectory can is described in a compact fashion by only storing
@@ -27,7 +25,7 @@ sequences with different numbers of samples per readout it may be a vector of in
 - `Δk_adc::U`: k-space step Δk between each readout
 - `φ::V`: Radial angle for each readout
 """
-struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory
+struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
     nreadouts::I
     nsamplesperreadout::I
     Δt::T # time between sample points
