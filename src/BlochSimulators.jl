@@ -12,20 +12,20 @@ module BlochSimulators
     using StaticArrays
     using Unitful
     using Unitless
-    
+
     import Adapt: adapt, adapt_storage, @adapt_structure # to allow custom Structs of non-isbits type to be used on gpu
     import Functors: @functor, functor, fmap, isleaf
 
     # hard-coded nr of threads per block on GPU
     const THREADS_PER_BLOCK = 32
 
-    # To perform simulations we need tissue parameters as inputs. 
-    # Supported combinations of tissue parameters are defined 
+    # To perform simulations we need tissue parameters as inputs.
+    # Supported combinations of tissue parameters are defined
     # in tissueparameters.jl
     include("interfaces/tissueparameters.jl")
 
     export AbstractTissueParameters, hasB₁, hasB₀
-    
+
     # Informal interface for sequence implementations. By convention,
     # a sequence::BlochSimulator is used to simulate magnetization at
     # echo times only.

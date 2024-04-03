@@ -6,8 +6,7 @@ is done by discretizing the RF excitation waveform in time and using multiple `I
 positions along the slice direction (`z`) per voxel. The sequence also uses an 'α/2' prepulse after the inversion.
 
 Within each TR, multiple time steps are used to simulate the RF excitation. Then, in one time step we go from the
-end of the RF excitation to the echo time (applying slice refocussing gradient, T₂ decay and B₀ rotation), and again
-in one time step from the echo time to the start of the next RF excitation.
+end of the RF excitation to the echo time (applying slice refocussing gradient, T₂ decay and B₀ rotation), and again in one time step from the echo time to the start of the next RF excitation.
 
 # Fields
 - `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and

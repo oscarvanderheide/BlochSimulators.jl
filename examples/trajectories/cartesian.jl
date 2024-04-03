@@ -60,7 +60,7 @@ export CartesianTrajectory
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, parameters)
     y  = map(p->p.y, parameters) |> vec
     kʸ = imag.(trajectory.k_start_readout)
-    @. magnetization *= exp(im * kʸ * y')
+    @. echos *= exp(im * kʸ * y')
     return nothing
 end
 
@@ -90,12 +90,12 @@ end
     x = p.x
     # There are ns samples per readout, echo time is assumed to occur
     # at index (ns÷2)+1. Now compute sample index relative to the echo time
-    s = sample_idx - ((ns÷2)+1)
+    s = sample_idx - ((ns ÷ 2) + 1)
     # Apply readout gradient, T₂ decay and B₀ rotation
-    E₂ = exp(-Δt*s*R₂)
+    E₂ = exp(-Δt * s * R₂)
     θ = Δkₓ * x
-    hasB₀(p) && (θ += π*p.B₀*Δt*2)
-    E₂eⁱᶿ = E₂ * exp(im*s*θ)
+    hasB₀(p) && (θ += π * p.B₀ * Δt * 2)
+    E₂eⁱᶿ = E₂ * exp(im * s * θ)
     mₛ = E₂eⁱᶿ * mₑ
 
     return mₛ
@@ -105,7 +105,7 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-CartesianTrajectory(nr,ns) = CartesianTrajectory(nr,ns,10^-5,complex.(rand(nr)), rand(),rand(Int,nr))
+CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(rand(nr)), rand(), rand(Int, nr))
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
 Base.getindex(tr::CartesianTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx])
@@ -131,7 +131,7 @@ function kspace_coordinates(tr::CartesianTrajectory)
 
     nr = tr.nreadouts
     ns = tr.nsamplesperreadout
-    k = [tr.k_start_readout[r] + (s-1)*tr.Δk_adc for s in 1:ns, r in 1:nr]
+    k = [tr.k_start_readout[r] + (s - 1) * tr.Δk_adc for s in 1:ns, r in 1:nr]
 
     return k
 end
@@ -148,7 +148,7 @@ function sampling_mask(tr::CartesianTrajectory)
 
     min_py = minimum(tr.py)
 
-    sampling_mask = [ CartesianIndices((1:ns, tr.py[r] - min_py + 1:tr.py[r] - min_py + 1)) for r in 1:nr]
+    sampling_mask = [CartesianIndices((1:ns, tr.py[r]-min_py+1:tr.py[r]-min_py+1)) for r in 1:nr]
 
     return sampling_mask
 end

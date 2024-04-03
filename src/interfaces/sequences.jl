@@ -80,7 +80,7 @@ an isochromat as output (implemented as a `FieldVector` perhaps) or state config
 matrices `Ω`.
 """
 function output_eltype(::BlochSimulator)
-    @warn "Must implement output_eltype" 
+    @warn "Must implement output_eltype"
 end
 
 """
@@ -112,7 +112,7 @@ non-allocating.
     to the simulation (e.g. `T₁T₂`)
 
 """
-function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
+function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters)
     @warn "Must implement simulate_magnetization!"
 end
 

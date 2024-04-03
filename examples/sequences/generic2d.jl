@@ -10,7 +10,7 @@ for the waveforms.
 - `GR::M{T}`: Matrix with GRx, GRy and GRz values during each time interval
 - `sample::S`: Vector with Bool's to indicate the sample points
 - `Δt::V{T}`: Vector with time intervals
-- `z::V{T}`: Vector with different positions along the slice direction 
+- `z::V{T}`: Vector with different positions along the slice direction
 """
 struct Generic2D{T,V<:AbstractVector{Complex{T}},W<:AbstractVector{T},M<:AbstractMatrix{T},S} <: IsochromatSimulator{T}
     RF::V
