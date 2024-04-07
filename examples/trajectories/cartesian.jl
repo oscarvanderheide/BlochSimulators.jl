@@ -55,13 +55,14 @@ end
 export CartesianTrajectory
 
 """
-    echos_to_signal(resource, echos, parameters, trajectory, coil_sensitivities)
+    magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
 Arguments
-- `echos`:          Matrix{Complex} of size (# readouts, # voxels) with phase-encoded
+- `magnetization`:          Matrix{Complex} of size (# readouts, # voxels) with phase-encoded
                     magnetization at echo times.
 - `parameters`:     Tissue parameters of all voxels, including spatial coordinates.
 - `trajectory`:     Cartesian trajectory struct.
+- `coordinates`:    Vector{Coordinates} with spatial coordinates for each voxel.
 - `parameters`:     Matrix{Complex} of size (# voxels, # coils) with coil sensitivities.
 
 Output:
@@ -137,7 +138,7 @@ function echos_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, echos, parameters, t
     Eˢ = @. E^(-(ns÷2):(ns÷2)-1)'
     # Perform main computation
     signal = map(eachcol(coil_sensitivities)) do c
-        echos * (Eˢ .* (ρ .* c))
+        magnetization * (Eˢ .* (ρ .* c))
     end
 
     # Final checks
@@ -154,7 +155,7 @@ end
 @inline nsamplesperreadout(t::SpokesTrajectory) = t.nsamplesperreadout
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
-function phase_encoding!(echos, trajectory::CartesianTrajectory, coordinates)
+function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates)
     y  = last.(coordinates) |> vec
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
@@ -162,11 +163,11 @@ function phase_encoding!(echos, trajectory::CartesianTrajectory, coordinates)
 end
 
 # perhaps do this with metaprogramming instead (iteratate over all subtypes of AbstractTrajectory)
-function phase_encoding!(echos::DArray, trajectory::CartesianTrajectory, coordinates::DArray)
+function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory, coordinates::DArray)
 
     @sync for p in workers()
         @async begin
-            @spawnat p phase_encoding!(localpart(echos), trajectory, localpart(coordinates))
+            @spawnat p phase_encoding!(localpart(magnetization), trajectory, localpart(coordinates))
         end
     end
 
