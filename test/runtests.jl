@@ -423,14 +423,14 @@ end
     magnetization = complex.(ones(nr, nv))
     parameters = fill(T₁T₂ρˣρʸ(Inf, Inf, 1.0, 0.0), nv)
     coordinates = fill(Coordinates(0.0, 0.0, 0.0), nv)
-    trajectory = CartesianTrajectory(nr, ns)
+    trajectory = RadialTrajectory(nr, ns)
     coil_sensitivities = complex(ones(nv, nc))
     resource = CPU1()
 
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     signal = only(signal)
 
-    @test signal == fill(nv, ns, nr)
+    @test vec(signal) == fill(nv, ns * nr)
 
     # if proton density is 0, then signal should be 0
 
@@ -439,7 +439,7 @@ end
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     signal = only(signal)
 
-    @test signal == zeros(ns, nr)
+    @test vec(signal) == zeros(ns * nr)
 
     # if coil sensitivities are 0 everywhere, then signal should be 0
 
@@ -448,7 +448,7 @@ end
     coil_sensitivities = complex(zeros(nv, nc))
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-    @test all([signal[j] == zeros(ns, nr) for j = 1:nc])
+    @test all([vec(signal[j]) == zeros(ns * nr) for j = 1:nc])
 
 end
 

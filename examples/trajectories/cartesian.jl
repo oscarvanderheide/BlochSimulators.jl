@@ -63,7 +63,7 @@ Arguments
 - `parameters`:     Tissue parameters of all voxels, including spatial coordinates.
 - `trajectory`:     Cartesian trajectory struct.
 - `coordinates`:    Vector{Coordinates} with spatial coordinates for each voxel.
-- `parameters`:     Matrix{Complex} of size (# voxels, # coils) with coil sensitivities.
+- `coil_sensitivities`:     Matrix{Complex} of size (# voxels, # coils) with coil sensitivities.
 
 Output:
 - `signal`: Vector of length (# coils) with each element a Matrix{Complex}
@@ -94,36 +94,40 @@ relative the the echo time can can be computed as mₛ = mᵣ * E[v]^s
 
 Therefore we can write
 
-signalⱼ[r,s] = sum( echos[r,v] * E[v]^s * ρ[v] * cⱼ[v] for v in 1:(# voxels))
-signalⱼ[r,s] = echos[r,:] * (E.^s .* ρ .* cⱼ)
+signalⱼ[r,s] = sum( magnetization[r,v] * E[v]^s * ρ[v] * cⱼ[v] for v in 1:(# voxels))
+signalⱼ[r,s] = magnetization[r,:] * (E.^s .* ρ .* cⱼ)
 
 Because the (E.^s .* ρ .* cⱼ)-part is the same for all readouts, we can simply
 perform this computation for all readouts simultaneously as
-signalⱼ[:,s] = echos * (E.^s .* ρ .* cⱼ)
+signalⱼ[:,s] = magnetization * (E.^s .* ρ .* cⱼ)
 
 If we define the matrix Eˢ as E .^ (-(ns÷2):(ns÷2)-1), then we can do the computation
 for all different sample points at the same time as well using a single matrix-matrix
 multiplication:
-signalⱼ = echos * (Eˢ .* (ρ .* cⱼ))
+signalⱼ = magnetization * (Eˢ .* (ρ .* cⱼ))
 
-For the final output, we need to do this for each coil j.
+The signalⱼ array is of size (# readouts, # samples per readout). We prefer to have it transposed, therefore we compute
+signalⱼ = transpose(Eˢ .* (ρ .* cⱼ)) * transpose(magnetization)
+instead.
+
+For the final output, we do this calculation for each coil j and get a vector of signal matrices (one matrix for each coil) as a result.
 
 Note that this implementation relies entirely on vectorized code
 and works on both CPU and GPU. The matrix-matrix multiplications
 are - I think - already multi-threaded so a separate multi-threaded
 implementation is not needed.
 """
-function echos_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, echos, parameters, trajectory::CartesianTrajectory, coil_sensitivities)
+function magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetization, parameters, trajectory::CartesianTrajectory, coordinates, coil_sensitivities)
 
     # Sanity checks
-    @assert size(echos) == (trajectory.nreadouts, length(parameters))
-    @assert size(coil_sensitivities,1) == length(parameters)
+    @assert size(magnetization) == (trajectory.nreadouts, length(parameters))
+    @assert size(coil_sensitivities, 1) == length(parameters)
 
     # Load constants
     # Maybe should start using StructArrays to get rid of the map stuff
-    T₂  = map(p->p.T₂, parameters) |> vec
-    ρ  = map(p->complex(p.ρˣ,p.ρʸ), parameters) |> vec
-    x  = map(r->r.x, coordinates) |> vec
+    T₂ = map(p -> p.T₂, parameters) |> vec
+    ρ = map(p -> complex(p.ρˣ, p.ρʸ), parameters) |> vec
+    x = map(r -> r.x, coordinates) |> vec
     Δt = trajectory.Δt
     Δkₓ = trajectory.Δk_adc
     ns = trajectory.nsamplesperreadout
@@ -132,18 +136,18 @@ function echos_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, echos, parameters, t
     # Dynamics during readout (gradient encoding, T2 decay, B0 rotation)
     # are different per voxel but the same for each readout and sample point
     # Pre-compute vector with dynamic change from one sample point to the next
-    E = @. exp(-Δt*inv(T₂)) * exp(im*(Δkₓ*x)) # todo: B0
+    E = @. exp(-Δt * inv(T₂)) * exp(im * (Δkₓ * x)) # todo: B0
     # To compute signal at all sample points with one matrix-matrix multiplication,
     # we pre-compute a readout_dynamics matrix instead
-    Eˢ = @. E^(-(ns÷2):(ns÷2)-1)'
+    Eˢ = @. E^(-(ns ÷ 2):(ns÷2)-1)'
     # Perform main computation
-    signal = map(eachcol(coil_sensitivities)) do c
-        magnetization * (Eˢ .* (ρ .* c))
+    signal = map(eachcol(coil_sensitivities)) do coil
+        transpose(Eˢ .* (ρ .* coil)) * transpose(magnetization)
     end
 
     # Final checks
-    @assert length(signal) == size(coil_sensitivities,2)
-    @assert size(signal[1]) == (nr,ns)
+    @assert length(signal) == size(coil_sensitivities, 2)
+    @assert size(signal[1]) == (ns, nr)
 
     return signal
 end
@@ -156,7 +160,7 @@ end
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates)
-    y  = map(r->r.y, coordinates) |> vec
+    y = map(r -> r.y, coordinates) |> vec
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
     return nothing
@@ -174,7 +178,7 @@ function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory,
     return nothing
 end
 
-@inline function to_sample_point(mₑ, trajectory::CartesianTrajectory, readout_idx, sample_idx, p)
+@inline function to_sample_point(mₑ, trajectory::CartesianTrajectory, readout_idx, sample_idx, coordinates, p)
 
     # Note that m has already been phase-encoded
 
@@ -183,7 +187,8 @@ end
     ns = nsamplesperreadout(trajectory, readout_idx)
     Δt = trajectory.Δt
     Δkₓ = trajectory.Δk_adc
-    x = p.x
+    x = coordinates.x
+    y = coordinates.y
     # There are ns samples per readout, echo time is assumed to occur
     # at index (ns÷2)+1. Now compute sample index relative to the echo time
     s = sample_idx - ((ns ÷ 2) + 1)
