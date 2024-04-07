@@ -123,7 +123,7 @@ function echos_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, echos, parameters, t
     # Maybe should start using StructArrays to get rid of the map stuff
     T₂  = map(p->p.T₂, parameters) |> vec
     ρ  = map(p->complex(p.ρˣ,p.ρʸ), parameters) |> vec
-    x  = map(p->p.x, parameters) |> vec
+    x  = map(r->r.x, coordinates) |> vec
     Δt = trajectory.Δt
     Δkₓ = trajectory.Δk_adc
     ns = trajectory.nsamplesperreadout
@@ -156,7 +156,7 @@ end
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates)
-    y  = last.(coordinates) |> vec
+    y  = map(r->r.y, coordinates) |> vec
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
     return nothing

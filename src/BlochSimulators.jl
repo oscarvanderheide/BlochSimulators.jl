@@ -59,10 +59,17 @@ module BlochSimulators
     include("../examples/sequences/adiabatic.jl")
 
     # Informal interface for trajectory implementations. By convention,
-    # a sequence::BlochSimulator is used to simulate magnetization at echo times
+    # a `sequence::BlochSimulator` is used to simulate magnetization at echo times
     # only and a trajectory::AbstractTrajectory is used to simulate
     # the magnetization at other readout times.
     include("interfaces/trajectories.jl")
+
+    # To simulate the effects of a gradient trajectory, the spatial coordinates
+    # of the voxels must be known. The coordinates are stored in a `Coordinates` struct
+    # with x,y, and z fields (with alias `xyz`).
+    include("interfaces/coordinates.jl")
+
+    export Coordinates
 
     # Currently included example trajectories:
     include("../examples/trajectories/cartesian.jl")

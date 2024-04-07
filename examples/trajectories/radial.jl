@@ -43,7 +43,7 @@ export RadialTrajectory
 
 ### Interface requirements
 
-@inline function to_sample_point(mₑ, trajectory::RadialTrajectory, readout_idx, sample_idx, p)
+@inline function to_sample_point(mₑ, trajectory::RadialTrajectory, readout_idx, sample_idx, (x, y, z), p)
 
     # Read in constants
     R₂ = inv(p.T₂)
@@ -51,7 +51,6 @@ export RadialTrajectory
     Δt = trajectory.Δt
     @inbounds k⁰ = trajectory.k_start_readout[readout_idx]
     @inbounds Δk = trajectory.Δk_adc[readout_idx]
-    x, y = p.x, p.y
 
     # There are ns samples per readout, echo time is assumed to occur
     # at index (ns÷2)+1. Now compute sample index relative to the echo time

@@ -247,8 +247,8 @@ end
     @test f32(t).py == t.py
 
     # test AbstractTissueParameters
-    p = T₁T₂B₁B₀xyz(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
-    f32(p) == T₁T₂B₁B₀xyz(1.0f0, 2.0f0, 3.0f0, 4.0f0, 5.0f0, 6.0f0, 7.0f0)
+    p = T₁T₂B₁B₀(1.0, 2.0, 3.0, 4.0)
+    f32(p) == T₁T₂B₁B₀(1.0f0, 2.0f0, 3.0f0, 4.0f0)
     f64(f32(p)) == p
 
 end
@@ -283,7 +283,7 @@ end
     @test gpu(t).readout_oversampling == t.readout_oversampling
 
     # test AbstractTissueParameters
-    p = T₁T₂B₁B₀xyz(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
+    p = T₁T₂B₁B₀(1.0, 2.0, 3.0, 4.0)
     @test gpu(p) == p
     @test gpu([p]) == CuArray([p])
 
@@ -327,7 +327,8 @@ end
     # Simulate magnetization at echo times for a single voxel with coordinates (0,0,0)
     nTR = 100
     sequence = FISP2D(nTR)
-    parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, 0.0, 0.0)]
+    parameters = [T₁T₂ρˣρʸ(1.0, 0.1, 1.0, 0.0)]
+    coordinates = [Coordinates(0.0, 0.0, 0.0)]
 
     d = simulate_magnetization(CPU1(), sequence, parameters)
 
@@ -335,7 +336,7 @@ end
     nr, ns = 100, 40
     trajectory = CartesianTrajectory(nr, ns)
 
-    s = simulate_signal(CPU1(), sequence, parameters, trajectory) .|> only
+    s = simulate_signal(CPU1(), sequence, parameters, trajectory, coordinates) |> only
 
     # Because this voxel has x = y = 0, a gradient trajectory
     # should not influence it and for one voxel there's no
@@ -344,12 +345,11 @@ end
 
     # If we now simulate with a voxel with x and y non-zero, then
     # at echo time the magnetization should be the same in abs
-    s2 = simulate_signal(CPU1(), sequence, [T₁T₂ρˣρʸxy(1.0, 0.1, 1.0, 0.0, rand(), rand())], trajectory) .|> only
+    s2 = simulate_signal(CPU1(), sequence, [T₁T₂ρˣρʸ(1.0, 0.1, 1.0, 0.0)], trajectory, coordinates) |> only
 
     @test abs.(d) ≈ abs.(s2[(ns÷2)+1:ns:end])
 
 end
-
 
 @testset "Tests for CartesianTrajectory" begin
 
@@ -418,35 +418,37 @@ end
     nv = 100 # voxels
     nr = 100 # readouts
     ns = 10  # samples per readout
+    nc = 1 # number of coils
 
     magnetization = complex.(ones(nr, nv))
-    parameters = fill(T₁T₂ρˣρʸxy(Inf, Inf, 1.0, 0.0, 0.0, 0.0), nv)
+    parameters = fill(T₁T₂ρˣρʸ(Inf, Inf, 1.0, 0.0), nv)
+    coordinates = fill(Coordinates(0.0, 0.0, 0.0), nv)
     trajectory = CartesianTrajectory(nr, ns)
-    coil_sensitivities = fill(SVector(complex(1.0)), nv)
+    coil_sensitivities = complex(ones(nv, nc))
     resource = CPU1()
 
-    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
-    signal = only.(signal)
+    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
+    signal = only(signal)
 
-    @test signal == fill(nv, nr * ns)
+    @test signal == fill(nv, ns, nr)
 
     # if proton density is 0, then signal should be 0
 
-    parameters = fill(T₁T₂ρˣρʸxy(rand(), rand(), 0.0, 0.0, rand(), rand()), nv)
+    parameters = fill(T₁T₂ρˣρʸ(rand(), rand(), 0.0, 0.0), nv)
 
-    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
-    signal = only.(signal)
+    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
+    signal = only(signal)
 
-    @test signal == zeros(nr * ns)
+    @test signal == zeros(ns, nr)
 
     # if coil sensitivities are 0 everywhere, then signal should be 0
 
-    parameters = fill(T₁T₂ρˣρʸxy(rand(6)...), nv)
+    parameters = fill(T₁T₂ρˣρʸ(rand(4)...), nv)
     nc = 4
-    coil_sensitivities = zeros(SVector{nc}, nv)
-    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
+    coil_sensitivities = complex(zeros(nv, nc))
+    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-    @test signal == zeros(SVector{nc}, nr * ns)
+    @test all([signal[j] == zeros(ns, nr) for j = 1:nc])
 
 end
 
@@ -457,16 +459,17 @@ end
     nvoxels = 1000
     sequence = FISP2D(nTR)
     sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
-    parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, rand(4)...) for _ = 1:nvoxels]
+    parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels]
 
     trajectory = CartesianTrajectory(nTR, 100)
-    coil_sensitivities = rand(SVector{2,ComplexF64}, nvoxels)
-
-    signal_cpu1 = simulate_signal(CPU1(), sequence, parameters, trajectory, coil_sensitivities)
+    nc = 2
+    coil_sensitivities = rand(ComplexF64, nvoxels, nc)
+    coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels]
+    signal_cpu1 = simulate_signal(CPU1(), sequence, parameters, trajectory, coordinates, coil_sensitivities)
 
     # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
-    signal_cputhreads = simulate_signal(CPUThreads(), sequence, parameters, trajectory, coil_sensitivities)
-    @test signal_cpu1 ≈ signal_cputhreads
+    signal_cputhreads = simulate_signal(CPUThreads(), sequence, parameters, trajectory, coordinates, coil_sensitivities)
+    @test all([signal_cpu1[j] ≈ signal_cputhreads[j] for j = 1:nc])
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
     # and check if outcome is the same
@@ -475,13 +478,13 @@ end
         @everywhere using BlochSimulators, ComputationalResources, DistributedArrays
     end
 
-    signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coil_sensitivities))
-    @test signal_cpu1 ≈ convert(Array, signal_cpuprocesses)
+    signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coordinates), distribute(coil_sensitivities))
+    @test all([signal_cpu1[j] ≈ convert(Array, signal_cpuprocesses)[j] for j = 1:nc])
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
-        signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coil_sensitivities)) |> collect
-        @test signal_cpu1 ≈ signal_cudalibs
+        signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coordinates), gpu(coil_sensitivities))
+        @test all([signal_cpu1[j] ≈ collect(signal_cudalibs[j]) for j = 1:nc])
     end
 
 end
