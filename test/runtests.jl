@@ -13,89 +13,89 @@ using DistributedArrays
 @testset "Test operator functions for isochromat model" begin
 
     # create single spin isochromat
-        m = BlochSimulators.Isochromat(rand(3)...)
+    m = BlochSimulators.Isochromat(rand(3)...)
 
     # check initial conditions
-        m = BlochSimulators.initial_conditions(m)
-        @test m == BlochSimulators.Isochromat(0.0, 0.0, 1.0)
+    m = BlochSimulators.initial_conditions(m)
+    @test m == BlochSimulators.Isochromat(0.0, 0.0, 1.0)
 
     # test inversion
-        # "adiabatic inversion"
-        @test BlochSimulators.invert(m) == BlochSimulators.Isochromat(0.0, 0.0, -1.0)
+    # "adiabatic inversion"
+    @test BlochSimulators.invert(m) == BlochSimulators.Isochromat(0.0, 0.0, -1.0)
 
-        # "
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 1.0)
-        @test BlochSimulators.invert(m,p) == BlochSimulators.Isochromat(0.0, 0.0, -1.0)
+    # "
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 1.0)
+    @test BlochSimulators.invert(m, p) == BlochSimulators.Isochromat(0.0, 0.0, -1.0)
 
-        # failed 90 degree inversion
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.5)
-        @test abs(BlochSimulators.invert(m,p).z) < eps()
+    # failed 90 degree inversion
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.5)
+    @test abs(BlochSimulators.invert(m, p).z) < eps()
 
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.0)
-        @test BlochSimulators.invert(m,p).z == 1.0
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.0)
+    @test BlochSimulators.invert(m, p).z == 1.0
 
     # test decay
-        m = BlochSimulators.Isochromat(1.0, 1.0, -1.0)
-        Δt = 1e7
-        E₁ = exp(-Δt/0.8)
-        E₂ = exp(-Δt/0.05)
-        # really long Δt so everything should be zero after decay
-        m = BlochSimulators.decay(m, E₁, E₂)
-        @test all(iszero.(m))
+    m = BlochSimulators.Isochromat(1.0, 1.0, -1.0)
+    Δt = 1e7
+    E₁ = exp(-Δt / 0.8)
+    E₂ = exp(-Δt / 0.05)
+    # really long Δt so everything should be zero after decay
+    m = BlochSimulators.decay(m, E₁, E₂)
+    @test all(iszero.(m))
 
     # test regrowth
 
-        m = BlochSimulators.regrowth(m, E₁)
-        # really long Δt so z component should be 1
-        @test m == BlochSimulators.initial_conditions(m)
+    m = BlochSimulators.regrowth(m, E₁)
+    # really long Δt so z component should be 1
+    @test m == BlochSimulators.initial_conditions(m)
 
     # rotate
 
-        z = 0.0
-        p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 0.0)
-        γΔtGRz = 0.0
-        Δt = 0.0
+    z = 0.0
+    p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 0.0)
+    γΔtGRz = 0.0
+    Δt = 0.0
 
-        m = BlochSimulators.Isochromat(0.0, 0.0, 1.0)
+    m = BlochSimulators.Isochromat(0.0, 0.0, 1.0)
 
-        # rotate over x-axis
-        γΔtRF = π/2 + 0.0im
-        mx = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
-        @test mx.y == -1.0 && abs(mx.z) < eps()
+    # rotate over x-axis
+    γΔtRF = π / 2 + 0.0im
+    mx = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
+    @test mx.y == -1.0 && abs(mx.z) < eps()
 
-        # rotate over y-axis
-        γΔtRF = 0.0 + im * π/2
-        my = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
-        @test my.x == -1.0 && abs(my.z) < eps()
+    # rotate over y-axis
+    γΔtRF = 0.0 + im * π / 2
+    my = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
+    @test my.x == -1.0 && abs(my.z) < eps()
 
-        # rotate over z-axis
-        γΔtRF = 0.0 + 0.0*im
-        γΔtGRz = π/2
-        z = 1.0
-        m = BlochSimulators.Isochromat(1.0, 0.0, 0.0)
-        mz = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
-        @test mz.y == -1.0 && abs(mz.x) < eps()
+    # rotate over z-axis
+    γΔtRF = 0.0 + 0.0 * im
+    γΔtGRz = π / 2
+    z = 1.0
+    m = BlochSimulators.Isochromat(1.0, 0.0, 0.0)
+    mz = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
+    @test mz.y == -1.0 && abs(mz.x) < eps()
 
-        p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 1.0)
-        γΔtGRz = 0.0
-        Δt = 0.5
-        mz = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
-        @test mz.x == -1.0 && abs(mz.y) < eps()
+    p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 1.0)
+    γΔtGRz = 0.0
+    Δt = 0.5
+    mz = BlochSimulators.rotate(m, γΔtRF, γΔtGRz, z, Δt, p)
+    @test mz.x == -1.0 && abs(mz.y) < eps()
 
-        # also test the rotate function without RF argument
+    # also test the rotate function without RF argument
 
-        γΔtGRz = π/2
-        z = 1.0
-        m = BlochSimulators.Isochromat(1.0, 0.0, 0.0)
-        p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 0.0)
-        mz = BlochSimulators.rotate(m, γΔtGRz, z, Δt, p)
-        @test mz.y == -1.0 && abs(mz.x) < eps()
+    γΔtGRz = π / 2
+    z = 1.0
+    m = BlochSimulators.Isochromat(1.0, 0.0, 0.0)
+    p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 0.0)
+    mz = BlochSimulators.rotate(m, γΔtGRz, z, Δt, p)
+    @test mz.y == -1.0 && abs(mz.x) < eps()
 
-        p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 1.0)
-        γΔtGRz = 0.0
-        Δt = 0.5
-        mz = BlochSimulators.rotate(m, γΔtGRz, z, Δt, p)
-        @test mz.x == -1.0 && abs(mz.y) < eps()
+    p = BlochSimulators.T₁T₂B₁B₀(1.0, 0.1, 1.0, 1.0)
+    γΔtGRz = 0.0
+    Δt = 0.5
+    mz = BlochSimulators.rotate(m, γΔtGRz, z, Δt, p)
+    @test mz.x == -1.0 && abs(mz.y) < eps()
 
 end
 
@@ -103,111 +103,111 @@ end
 @testset "Test operator functions for EPG model" begin
 
     # create single spin isochromat
-        Ω = @MMatrix zeros(ComplexF64,3,20)
+    Ω = @MMatrix zeros(ComplexF64, 3, 20)
 
     # check initial conditions
-        BlochSimulators.initial_conditions!(Ω)
-        @test Ω[3,1] == 1.0 + 0.0im
-        @test sum(Ω) == 1.0 + 0.0im
+    BlochSimulators.initial_conditions!(Ω)
+    @test Ω[3, 1] == 1.0 + 0.0im
+    @test sum(Ω) == 1.0 + 0.0im
 
     # test inversion
 
-        # "adiabatic inversion"
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.invert!(Ω)
-        @test Ω[3,1] == -1
+    # "adiabatic inversion"
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.invert!(Ω)
+    @test Ω[3, 1] == -1
 
-        # "non-adiabatic inversion"
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 1.0)
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.invert!(Ω,p)
-        @test Ω[3,1] == -1
+    # "non-adiabatic inversion"
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 1.0)
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.invert!(Ω, p)
+    @test Ω[3, 1] == -1
 
-        # failed 90 degree inversion
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.5)
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.invert!(Ω,p)
-        @test abs(Ω[3,1]) < eps()
+    # failed 90 degree inversion
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.5)
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.invert!(Ω, p)
+    @test abs(Ω[3, 1]) < eps()
 
-        # 0 B1 so 0 effect
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.0)
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.invert!(Ω,p)
-        @test Ω[3,1] == 1
+    # 0 B1 so 0 effect
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.0)
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.invert!(Ω, p)
+    @test Ω[3, 1] == 1
 
-        # check "adiabatic inversion" for higher order states as well
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.Z(Ω) .= 0.1
-        BlochSimulators.invert!(Ω)
-        @test all(Ω[3,:] .== complex(-0.1))
+    # check "adiabatic inversion" for higher order states as well
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.Z(Ω) .= 0.1
+    BlochSimulators.invert!(Ω)
+    @test all(Ω[3, :] .== complex(-0.1))
 
     # test decay
-        Ω = @MMatrix rand(ComplexF64,3,20)
-        Δt = 1e7
-        E₁ = exp(-Δt/0.8)
-        E₂ = exp(-Δt/0.05)
-        # really long Δt so everything should be zero after decay
-        BlochSimulators.decay!(Ω, E₁, E₂)
-        @test all(iszero.(Ω))
+    Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Δt = 1e7
+    E₁ = exp(-Δt / 0.8)
+    E₂ = exp(-Δt / 0.05)
+    # really long Δt so everything should be zero after decay
+    BlochSimulators.decay!(Ω, E₁, E₂)
+    @test all(iszero.(Ω))
 
     # test regrowth
 
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.decay!(Ω, E₁, E₂)
-        BlochSimulators.regrowth!(Ω, E₁)
-        # really long Δt so z component should be 1
-        @test Ω[3,1] == 1.0
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.decay!(Ω, E₁, E₂)
+    BlochSimulators.regrowth!(Ω, E₁)
+    # really long Δt so z component should be 1
+    @test Ω[3, 1] == 1.0
 
     # rotate
 
-        RF = complex(90.0)
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 1.0)
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.excite!(Ω, RF, p)
-        @test Ω[1,1] == -im && Ω[2,1] == conj(Ω[1,1])
+    RF = complex(90.0)
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 1.0)
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.excite!(Ω, RF, p)
+    @test Ω[1, 1] == -im && Ω[2, 1] == conj(Ω[1, 1])
 
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.excite!(Ω, complex(45.0), p)
-        @test Ω[1,1] ≈ -(√2/2)*im && Ω[2,1] == conj(Ω[1,1])
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.excite!(Ω, complex(45.0), p)
+    @test Ω[1, 1] ≈ -(√2 / 2) * im && Ω[2, 1] == conj(Ω[1, 1])
 
-        p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.0)
-        BlochSimulators.initial_conditions!(Ω)
-        BlochSimulators.excite!(Ω, complex(90.0), p)
-        @test Ω[1,1] ≈ 0 && Ω[2,1] == conj(Ω[1,1])
+    p = BlochSimulators.T₁T₂B₁(1.0, 0.1, 0.0)
+    BlochSimulators.initial_conditions!(Ω)
+    BlochSimulators.excite!(Ω, complex(90.0), p)
+    @test Ω[1, 1] ≈ 0 && Ω[2, 1] == conj(Ω[1, 1])
 
     # dephasing
 
-        # dont act on Z states
-        Ω = @MMatrix rand(ComplexF64,3,20)
-        Ω2 = copy(Ω)
-        BlochSimulators.dephasing!(Ω)
-        @test Ω[3,:] == Ω2[3,:]
+    # dont act on Z states
+    Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω2 = copy(Ω)
+    BlochSimulators.dephasing!(Ω)
+    @test Ω[3, :] == Ω2[3, :]
 
-        # check "left boundary"
-        BlochSimulators.initial_conditions!(Ω)
-        Ω[1,1] = 1
-        Ω[2,1] = 2
-        Ω[2,2] = 3im
-        BlochSimulators.dephasing!(Ω)
-        @test Ω[1,2] == 1 && Ω[2,1] == 3im && Ω[1,1] == conj(Ω[2,1])
+    # check "left boundary"
+    BlochSimulators.initial_conditions!(Ω)
+    Ω[1, 1] = 1
+    Ω[2, 1] = 2
+    Ω[2, 2] = 3im
+    BlochSimulators.dephasing!(Ω)
+    @test Ω[1, 2] == 1 && Ω[2, 1] == 3im && Ω[1, 1] == conj(Ω[2, 1])
 
-        # check "right boundary"
-        Ω .= reshape(1:60,3,20)
-        Ω[2,1] = 1
-        Ω[2,2] = 5im
-        Ωpre = copy(Ω)
-        BlochSimulators.dephasing!(Ω)
-        @test Ω[1,end] == Ωpre[1,end-1]
-        @test Ω[2,end-1] == Ωpre[2,end]
-        @test Ω[3,end] == Ωpre[3,end]
+    # check "right boundary"
+    Ω .= reshape(1:60, 3, 20)
+    Ω[2, 1] = 1
+    Ω[2, 2] = 5im
+    Ωpre = copy(Ω)
+    BlochSimulators.dephasing!(Ω)
+    @test Ω[1, end] == Ωpre[1, end-1]
+    @test Ω[2, end-1] == Ωpre[2, end]
+    @test Ω[3, end] == Ωpre[3, end]
 
     # spoil
 
-        # check that transverse states are nulled
-        Ω = @MMatrix rand(ComplexF64,3,20)
-        BlochSimulators.spoil!(Ω)
-        @test all(Ω[1,:] .== complex(0.0))
-        @test all(Ω[2,:] .== complex(0.0))
+    # check that transverse states are nulled
+    Ω = @MMatrix rand(ComplexF64, 3, 20)
+    BlochSimulators.spoil!(Ω)
+    @test all(Ω[1, :] .== complex(0.0))
+    @test all(Ω[2, :] .== complex(0.0))
 
 end
 
@@ -216,10 +216,10 @@ end
     # f32 and f64 should recursively go through nested structures and convert floating point numbers only
 
     # first, test some complicated but random nested structure
-    x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a = 9.0, b = 10.0im)]
+    x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
     @test f64(x) == x
-    @test f32(x) == [1, 2.0f0, 3.0f0, [4.0f0, 5.0f0], 6.0f0im, (7.0f0, 8.0f0im), (a = 9.0f0, b = 10.0f0im)]
+    @test f32(x) == [1, 2.0f0, 3.0f0, [4.0f0, 5.0f0], 6.0f0im, (7.0f0, 8.0f0im), (a=9.0f0, b=10.0f0im)]
 
     # test FISP sequence struct
     nTR = 10
@@ -235,7 +235,7 @@ end
     @test f32(s).max_state == s.max_state
 
     # test Cartesian trajectory struct
-    t = CartesianTrajectory(nTR,100)
+    t = CartesianTrajectory(nTR, 100)
 
     @test f64(t) == t
 
@@ -247,8 +247,8 @@ end
     @test f32(t).py == t.py
 
     # test AbstractTissueParameters
-    p = T₁T₂B₁B₀xyz(1.0,2.0,3.0,4.0,5.0,6.0,7.0)
-    f32(p) == T₁T₂B₁B₀xyz(1.0f0,2.0f0,3.0f0,4.0f0,5.0f0,6.0f0,7.0f0)
+    p = T₁T₂B₁B₀xyz(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
+    f32(p) == T₁T₂B₁B₀xyz(1.0f0, 2.0f0, 3.0f0, 4.0f0, 5.0f0, 6.0f0, 7.0f0)
     f64(f32(p)) == p
 
 end
@@ -256,9 +256,9 @@ end
 @testset "Test functions to move to gpu" begin
 
     # first, test some complicated but random nested structure
-    x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a = 9.0, b = 10.0im)]
+    x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
-    @test gpu(x) == [1, 2.0, 3.0f0, CuArray([4.0, 5.0]), 6.0im, (7.0, 8.0im), (a = 9.0, b = 10.0im)]
+    @test gpu(x) == [1, 2.0, 3.0f0, CuArray([4.0, 5.0]), 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
     # test FISP sequence struct
     nTR = 10
@@ -272,7 +272,7 @@ end
     @test gpu(s).max_state == s.max_state
 
     # test Cartesian trajectory struct
-    t = CartesianTrajectory(nTR,100)
+    t = CartesianTrajectory(nTR, 100)
 
     @test gpu(t).nreadouts == t.nreadouts
     @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
@@ -280,9 +280,10 @@ end
     @test gpu(t).k_start_readout == CuArray(t.k_start_readout)
     @test gpu(t).Δk_adc == t.Δk_adc
     @test gpu(t).py == CuArray(t.py)
+    @test gpu(t).readout_oversampling == t.readout_oversampling
 
     # test AbstractTissueParameters
-    p = T₁T₂B₁B₀xyz(1.0,2.0,3.0,4.0,5.0,6.0,7.0)
+    p = T₁T₂B₁B₀xyz(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
     @test gpu(p) == p
     @test gpu([p]) == CuArray([p])
 
@@ -293,7 +294,7 @@ end
     # Simulate dictionary with CPU1()
     nTR = 1000
     sequence = FISP2D(nTR)
-    sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
+    sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂(rand(), rand()) for _ = 1:1000]
 
     magnetization_cpu1 = simulate_magnetization(CPU1(), sequence, parameters)
@@ -311,7 +312,7 @@ end
 
     magnetization_cpuprocesses = simulate_magnetization(CPUProcesses(), sequence, parameters)
 
-    @test magnetization_cpu1 ≈ convert(Array,magnetization_cpuprocesses)
+    @test magnetization_cpu1 ≈ convert(Array, magnetization_cpuprocesses)
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
@@ -332,7 +333,7 @@ end
 
     # Use some trajectory to simulate signal
     nr, ns = 100, 40
-    trajectory = CartesianTrajectory(nr,ns)
+    trajectory = CartesianTrajectory(nr, ns)
 
     s = simulate_signal(CPU1(), sequence, parameters, trajectory) .|> only
 
@@ -358,22 +359,23 @@ end
     Δt = 4e-6 # s
     fovx = 10.0 # cm
     fovy = 10.0 # cm
-    Δkˣ = 2π / fovx;
-    Δkʸ = 2π / fovy;
+    Δkˣ = 2π / fovx
+    Δkʸ = 2π / fovy
     py = collect(-50:49)
-    k0 = [(-ns/2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr];
+    k0 = [(-ns / 2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr]
+    os = 1
 
     # assemble Cartesian trajectory
-    cartesian = CartesianTrajectory(nr, ns, Δt, k0, Δkˣ, py)
+    cartesian = CartesianTrajectory(nr, ns, Δt, k0, Δkˣ, py, os)
 
     # test whether getindex method to reduce sequence length works
-    @test cartesian[1:50].k_start_readout == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50]).k_start_readout
-    @test cartesian[1:50].Δk_adc == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50]).Δk_adc
-    @test cartesian[1:50].py == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50]).py
+    @test cartesian[1:50].k_start_readout == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).k_start_readout
+    @test cartesian[1:50].Δk_adc == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).Δk_adc
+    @test cartesian[1:50].py == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).py
 
     @test BlochSimulators.sampling_mask(cartesian)[10] == CartesianIndices((1:ns, 10:10))
 
-    @test BlochSimulators.kspace_coordinates(cartesian)[:,1] == k0[1] .+ (collect(0:ns-1) .* Δkˣ)
+    @test BlochSimulators.kspace_coordinates(cartesian)[:, 1] == k0[1] .+ (collect(0:ns-1) .* Δkˣ)
 end
 
 @testset "Tests for RadialTrajectory" begin
@@ -382,26 +384,27 @@ end
     nr = 100
     ns = 128
     Δt = 4e-6 # s
-    os = 2;  # factor two oversampling
+    os = 2  # factor two oversampling
     fovx = 10.0 # cm
     fovy = 10.0 # cm
-    φ = π/((√5+1)/2) # golden angle of ~111 degrees
-    Δkˣ = 2π / (os*fovx);
+    φ = π / ((√5 + 1) / 2) # golden angle of ~111 degrees
+    Δkˣ = 2π / (os * fovx)
     φ = collect(φ .* (0:nr-1))
-    k0 = -(ns/2)*Δkˣ + 0.0im
-    k0 = collect(@. exp(im*φ) * k0)
+    k0 = -(ns / 2) * Δkˣ + 0.0im
+    k0 = collect(@. exp(im * φ) * k0)
     Δk = Δkˣ + 0.0im
-    Δk = collect(@. exp(im*φ) * Δk)
+    Δk = collect(@. exp(im * φ) * Δk)
+    os = 1
 
-    radial = RadialTrajectory(nr, ns, Δt, k0, Δk, φ)
+    radial = RadialTrajectory(nr, ns, Δt, k0, Δk, φ, 1)
 
     # test whether getindex method to reduce sequence length works
-    @test radial[1:50].k_start_readout == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50]).k_start_readout
-    @test radial[1:50].Δk_adc == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50]).Δk_adc
-    @test radial[1:50].φ  == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50]).φ
+    @test radial[1:50].k_start_readout == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).k_start_readout
+    @test radial[1:50].Δk_adc == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).Δk_adc
+    @test radial[1:50].φ == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).φ
 
     # test gradient delay for radial
-    S = rand(2,2)
+    S = rand(2, 2)
     radial_delay = deepcopy(radial)
     BlochSimulators.add_gradient_delay!(radial_delay, S)
     @test all(radial_delay.k_start_readout .== BlochSimulators.add_gradient_delay(radial, S).k_start_readout)
@@ -410,40 +413,40 @@ end
 
 @testset "Signal simulation sanity checks" begin
 
-    # if magnetization .= 1, x and y .= 0, coil_sensitivities .= 1, T₂ .= Inf, 
+    # if magnetization .= 1, x and y .= 0, coil_sensitivities .= 1, T₂ .= Inf,
     # then signal should simply be the nr of voxels at all time points
-        nv = 100 # voxels
-        nr = 100 # readouts
-        ns = 10  # samples per readout
+    nv = 100 # voxels
+    nr = 100 # readouts
+    ns = 10  # samples per readout
 
-        magnetization = complex.(ones(nr,nv))
-        parameters = fill(T₁T₂ρˣρʸxy(Inf,Inf,1.0,0.0,0.0,0.0), nv)
-        trajectory = CartesianTrajectory(nr,ns)
-        coil_sensitivities = fill(SVector(complex(1.0)), nv)
-        resource = CPU1()
+    magnetization = complex.(ones(nr, nv))
+    parameters = fill(T₁T₂ρˣρʸxy(Inf, Inf, 1.0, 0.0, 0.0, 0.0), nv)
+    trajectory = CartesianTrajectory(nr, ns)
+    coil_sensitivities = fill(SVector(complex(1.0)), nv)
+    resource = CPU1()
 
-        signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
-        signal = only.(signal)
+    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
+    signal = only.(signal)
 
-        @test signal == fill(nv, nr*ns)
+    @test signal == fill(nv, nr * ns)
 
-    # if proton density is 0, then signal should be 0 
+    # if proton density is 0, then signal should be 0
 
-        parameters = fill(T₁T₂ρˣρʸxy(rand(),rand(),0.0,0.0,rand(), rand()), nv)
+    parameters = fill(T₁T₂ρˣρʸxy(rand(), rand(), 0.0, 0.0, rand(), rand()), nv)
 
-        signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
-        signal = only.(signal)
+    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
+    signal = only.(signal)
 
-        @test signal == zeros(nr*ns) 
+    @test signal == zeros(nr * ns)
 
-    # if coil sensitivities are 0 everywhere, then signal should be 0 
+    # if coil sensitivities are 0 everywhere, then signal should be 0
 
-        parameters = fill(T₁T₂ρˣρʸxy(rand(6)...), nv)
-        nc = 4
-        coil_sensitivities = zeros(SVector{nc}, nv)
-        signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
+    parameters = fill(T₁T₂ρˣρʸxy(rand(6)...), nv)
+    nc = 4
+    coil_sensitivities = zeros(SVector{nc}, nv)
+    signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)
 
-        @test signal == zeros(SVector{nc}, nr*ns) 
+    @test signal == zeros(SVector{nc}, nr * ns)
 
 end
 
@@ -453,8 +456,8 @@ end
     nTR = 1000
     nvoxels = 1000
     sequence = FISP2D(nTR)
-    sequence.sliceprofiles[:,:] .= rand(ComplexF64, nTR, 3)
-    parameters = [T₁T₂ρˣρʸxy(1.0,0.1,rand(4)...) for _ = 1:nvoxels]
+    sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
+    parameters = [T₁T₂ρˣρʸxy(1.0, 0.1, rand(4)...) for _ = 1:nvoxels]
 
     trajectory = CartesianTrajectory(nTR, 100)
     coil_sensitivities = rand(SVector{2,ComplexF64}, nvoxels)
@@ -473,7 +476,7 @@ end
     end
 
     signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coil_sensitivities))
-    @test signal_cpu1 ≈ convert(Array,signal_cpuprocesses)
+    @test signal_cpu1 ≈ convert(Array, signal_cpuprocesses)
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same

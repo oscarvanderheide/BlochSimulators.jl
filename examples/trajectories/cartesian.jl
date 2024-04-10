@@ -37,6 +37,7 @@ sequences with different numbers of samples per readout it may be a vector of in
 - `k_start_readout::U`: Starting position in k-space for each readout
 - `Δk_adc::U`: k-space step Δkₓ per sample point (same for all readouts)
 - `py::V`: Phase encoding index for each readout
+- `readout_oversampling::I`: Readout oversampling factor
 """
 struct CartesianTrajectory{T<:Real,I<:Integer,U<:AbstractVector,V<:AbstractVector} <: SpokesTrajectory{T}
     nreadouts::I
@@ -45,6 +46,7 @@ struct CartesianTrajectory{T<:Real,I<:Integer,U<:AbstractVector,V<:AbstractVecto
     k_start_readout::U # starting position in k-space for each readout
     Δk_adc::T # Δk during ADC for each readout
     py::V # phase encoding order, not needed but nice to store
+    readout_oversampling::I # readout oversampling factor
 end
 
 @functor CartesianTrajectory
@@ -58,9 +60,9 @@ export CartesianTrajectory
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, parameters)
-    y  = map(p->p.y, parameters) |> vec
+    y = map(p -> p.y, parameters) |> vec
     kʸ = imag.(trajectory.k_start_readout)
-    @. echos *= exp(im * kʸ * y')
+    @. magnetization *= exp(im * kʸ * y')
     return nothing
 end
 
@@ -75,8 +77,6 @@ function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory,
 
     return nothing
 end
-
-
 
 @inline function to_sample_point(mₑ, trajectory::CartesianTrajectory, readout_idx, sample_idx, p)
 
@@ -105,21 +105,22 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(rand(nr)), rand(), rand(Int, nr))
+CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(rand(nr)), rand(), rand(Int, nr), 1)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
-Base.getindex(tr::CartesianTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx])
+Base.getindex(tr::CartesianTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx], tr.readout_oversampling)
 
 # Nicer printing in REPL
 Base.show(io::IO, tr::CartesianTrajectory) = begin
     println("")
     println(io, "Cartesian trajectory")
-    println(io, "nreadouts:          ", tr.nreadouts)
-    println(io, "nsamplesperreadout: ", tr.nsamplesperreadout)
-    println(io, "Δt:                 ", tr.Δt)
-    println(io, "k_start_readout:    ", typeof(tr.k_start_readout))
-    println(io, "Δk_adc:             ", tr.Δk_adc)
-    println(io, "py:                 ", typeof(tr.py))
+    println(io, "nreadouts:            ", tr.nreadouts)
+    println(io, "nsamplesperreadout:   ", tr.nsamplesperreadout)
+    println(io, "Δt:                   ", tr.Δt)
+    println(io, "k_start_readout:      ", typeof(tr.k_start_readout))
+    println(io, "Δk_adc:               ", tr.Δk_adc)
+    println(io, "py:                   ", typeof(tr.py))
+    println(io, "readout_oversampling: ", typeof(tr.readout_oversampling))
 end
 
 """

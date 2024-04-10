@@ -24,6 +24,7 @@ sequences with different numbers of samples per readout it may be a vector of in
 - `k_start_readout::U`: Starting position in k-space for each readout
 - `Δk_adc::U`: k-space step Δk between each readout
 - `φ::V`: Radial angle for each readout
+- `readout_oversampling::I`: Readout oversampling factor
 """
 struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
     nreadouts::I
@@ -32,6 +33,7 @@ struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
     k_start_readout::U # starting position in k-space for each readout
     Δk_adc::U # Δk during ADC for each readout
     φ::V # radial angles, not needed but nice to store
+    readout_oversampling::I
 end
 
 @functor RadialTrajectory
@@ -71,21 +73,22 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(rand(nr)), complex.(rand(nr)), rand(nr))
+RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(rand(nr)), complex.(rand(nr)), rand(nr), 1)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
-Base.getindex(tr::RadialTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc[idx], tr.φ[idx])
+Base.getindex(tr::RadialTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc[idx], tr.φ[idx], tr.readout_oversampling)
 
 # Nicer printing in REPL
 Base.show(io::IO, tr::RadialTrajectory) = begin
     println("")
     println(io, "Radial trajectory")
-    println(io, "nreadouts:          ", tr.nreadouts)
-    println(io, "nsamplesperreadout: ", tr.nsamplesperreadout)
-    println(io, "Δt:                 ", tr.Δt)
-    println(io, "k_start_readout:    ", typeof(tr.k_start_readout))
-    println(io, "Δk_adc:             ", typeof(tr.Δk_adc))
-    println(io, "φ:                  ", typeof(tr.φ))
+    println(io, "nreadouts:            ", tr.nreadouts)
+    println(io, "nsamplesperreadout:   ", tr.nsamplesperreadout)
+    println(io, "Δt:                   ", tr.Δt)
+    println(io, "k_start_readout:      ", typeof(tr.k_start_readout))
+    println(io, "Δk_adc:               ", typeof(tr.Δk_adc))
+    println(io, "φ:                    ", typeof(tr.φ))
+    println(io, "readout_oversampling: ", typeof(tr.readout_oversampling))
 end
 
 """
