@@ -106,7 +106,7 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(rand(nr)), rand(), rand(Int, nr), 2)
+CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(ones(nr)), 1.0, ones(Int, nr), 2)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
 Base.getindex(tr::CartesianTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx], tr.readout_oversampling)

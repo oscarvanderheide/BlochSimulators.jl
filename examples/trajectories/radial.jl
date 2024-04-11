@@ -73,7 +73,7 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(rand(nr)), complex.(rand(nr)), rand(nr), 2)
+RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(ones(nr)), complex.(ones(nr)), ones(nr), 2)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
 Base.getindex(tr::RadialTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc[idx], tr.φ[idx], tr.readout_oversampling)
