@@ -57,6 +57,7 @@ export CartesianTrajectory
 ### Interface requirements
 
 @inline nreadouts(t::SpokesTrajectory) = t.nreadouts
+@inline nsamplesperreadout(t::SpokesTrajectory) = t.nsamplesperreadout
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, parameters)
@@ -105,7 +106,7 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(rand(nr)), rand(), rand(Int, nr), 1)
+CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(rand(nr)), rand(), rand(Int, nr), 2)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
 Base.getindex(tr::CartesianTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx], tr.readout_oversampling)
@@ -120,7 +121,7 @@ Base.show(io::IO, tr::CartesianTrajectory) = begin
     println(io, "k_start_readout:      ", typeof(tr.k_start_readout))
     println(io, "Δk_adc:               ", tr.Δk_adc)
     println(io, "py:                   ", typeof(tr.py))
-    println(io, "readout_oversampling: ", typeof(tr.readout_oversampling))
+    println(io, "readout_oversampling: ", tr.readout_oversampling)
 end
 
 """
