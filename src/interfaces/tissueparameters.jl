@@ -158,3 +158,26 @@ end
 for P in subtypes(AbstractTissueParameters)
     @eval export $(Symbol(nameof(P)))
 end
+
+# Function to get the nonlinear part of the tissue parameters
+function get_nonlinear_part(p::Type{<:AbstractTissueParameters})
+    parameter_set = fieldnames(p)
+    if (:ρˣ ∉ parameter_set) && (:ρʸ ∉ parameter_set)
+        return p
+    elseif (:ρˣ ∈ parameter_set) && (:ρʸ ∈ parameter_set)
+
+        if p <: T₁T₂ρˣρʸ
+            return T₁T₂
+        elseif p <: T₁T₂B₁ρˣρʸ
+            return T₁T₂B₁
+        elseif p <: T₁T₂B₀ρˣρʸ
+            return T₁T₂B₀
+        elseif p <: T₁T₂B₁B₀ρˣρʸ
+            return T₁T₂B₁B₀
+        else
+            error("Unknown parameter type: $p")
+        end
+    else
+        error("Either both :ρˣ and :ρʸ should be included, or neither should be")
+    end
+end
