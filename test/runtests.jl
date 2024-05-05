@@ -104,6 +104,7 @@ end
 
     # create single spin isochromat
     Ω = @MMatrix zeros(ComplexF64, 3, 20)
+    Ω = ConfigurationStates(Ω)
 
     # check initial conditions
     BlochSimulators.initial_conditions!(Ω)
@@ -143,12 +144,13 @@ end
 
     # test decay
     Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω = ConfigurationStates(Ω)
     Δt = 1e7
     E₁ = exp(-Δt / 0.8)
     E₂ = exp(-Δt / 0.05)
     # really long Δt so everything should be zero after decay
     BlochSimulators.decay!(Ω, E₁, E₂)
-    @test all(iszero.(Ω))
+    @test all(iszero.(Ω.matrix))
 
     # test regrowth
 
@@ -179,6 +181,7 @@ end
 
     # dont act on Z states
     Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω = ConfigurationStates(Ω)
     Ω2 = copy(Ω)
     BlochSimulators.dephasing!(Ω)
     @test Ω[3, :] == Ω2[3, :]
@@ -205,6 +208,7 @@ end
 
     # check that transverse states are nulled
     Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω = ConfigurationStates(Ω)
     BlochSimulators.spoil!(Ω)
     @test all(Ω[1, :] .== complex(0.0))
     @test all(Ω[2, :] .== complex(0.0))
@@ -255,38 +259,39 @@ end
 
 @testset "Test functions to move to gpu" begin
 
-    # first, test some complicated but random nested structure
-    x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
+    if CUDA.functional()
+        # first, test some complicated but random nested structure
+        x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
-    @test gpu(x) == [1, 2.0, 3.0f0, CuArray([4.0, 5.0]), 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
+        @test gpu(x) == [1, 2.0, 3.0f0, CuArray([4.0, 5.0]), 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
-    # test FISP sequence struct
-    nTR = 10
-    s = FISP2D(nTR)
+        # test FISP sequence struct
+        nTR = 10
+        s = FISP2D(nTR)
 
-    @test gpu(s).RF_train == CuArray(s.RF_train)
-    @test gpu(s).sliceprofiles == CuArray(s.sliceprofiles)
-    @test gpu(s).TR == s.TR
-    @test gpu(s).TE == s.TE
-    @test gpu(s).TI == s.TI
-    @test gpu(s).max_state == s.max_state
+        @test gpu(s).RF_train == CuArray(s.RF_train)
+        @test gpu(s).sliceprofiles == CuArray(s.sliceprofiles)
+        @test gpu(s).TR == s.TR
+        @test gpu(s).TE == s.TE
+        @test gpu(s).TI == s.TI
+        @test gpu(s).max_state == s.max_state
 
-    # test Cartesian trajectory struct
-    t = CartesianTrajectory(nTR, 100)
+        # test Cartesian trajectory struct
+        t = CartesianTrajectory(nTR, 100)
 
-    @test gpu(t).nreadouts == t.nreadouts
-    @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
-    @test gpu(t).Δt == t.Δt
-    @test gpu(t).k_start_readout == CuArray(t.k_start_readout)
-    @test gpu(t).Δk_adc == t.Δk_adc
-    @test gpu(t).py == CuArray(t.py)
-    @test gpu(t).readout_oversampling == t.readout_oversampling
+        @test gpu(t).nreadouts == t.nreadouts
+        @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
+        @test gpu(t).Δt == t.Δt
+        @test gpu(t).k_start_readout == CuArray(t.k_start_readout)
+        @test gpu(t).Δk_adc == t.Δk_adc
+        @test gpu(t).py == CuArray(t.py)
+        @test gpu(t).readout_oversampling == t.readout_oversampling
 
-    # test AbstractTissueParameters
-    p = T₁T₂B₁B₀xyz(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
-    @test gpu(p) == p
-    @test gpu([p]) == CuArray([p])
-
+        # test AbstractTissueParameters
+        p = T₁T₂B₁B₀xyz(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0)
+        @test gpu(p) == p
+        @test gpu([p]) == CuArray([p])
+    end
 end
 
 @testset "Test dictionary generation on different computational resources" begin

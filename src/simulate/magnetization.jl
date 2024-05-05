@@ -111,7 +111,7 @@ function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
         if voxel <= length(parameters)
             # run simulation for voxel
-            simulate_magnetization!(view(output,:,voxel), sequence, states, parameters[voxel])
+            simulate_magnetization!(view(output, :, voxel), sequence, states, parameters[voxel])
         end
 
         return nothing
@@ -119,7 +119,7 @@ function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
     # launch kernels
     CUDA.@sync begin
-        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_kernel!(output, sequence, parameters)
+        @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK magnetization_kernel!(output, sequence, parameters)
     end
 
     return output
