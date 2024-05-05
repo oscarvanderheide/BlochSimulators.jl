@@ -154,7 +154,7 @@ Phase of RF is the phase of the pulse. If RF is real, the computations simplify 
     # assemble static matrix
     R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
     # apply rotation matrix to each state
-    Ω .= R * Ω
+    Ω.matrix .= R * Ω.matrix
     return nothing
 end
 """
@@ -183,7 +183,7 @@ If RF is real, the calculations simplify (and probably Ω is real too, reducing 
     # assemble static matrix
     R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
     # apply rotation matrix to each state
-    Ω .= R * Ω
+    Ω.matrix .= R * Ω.matrix
 
     return nothing
 end
@@ -205,7 +205,7 @@ end
 T₂ decay for F-components, T₁ decay for `Z`-component of each state.
 """
 @inline function decay!(Ω::AbstractConfigurationStates, E₁, E₂)
-    @. Ω *= (E₂, E₂, E₁)
+    @. Ω.matrix *= (E₂, E₂, E₁)
 end
 
 """
@@ -214,7 +214,7 @@ end
 Rotate and decay combined
 """
 @inline function rotate_decay!(Ω::AbstractConfigurationStates, E₁, E₂, eⁱᶿ)
-    @. Ω *= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
+    @. Ω.matrix *= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
 end
 
 # Regrowth
