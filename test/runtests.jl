@@ -428,18 +428,16 @@ end
     resource = CPU1()
 
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-    signal = only(signal)
-
-    @test vec(signal) == fill(nv, ns * nr)
+  
+    @test signal == fill(nv, ns * nr, nc)
 
     # if proton density is 0, then signal should be 0
 
     parameters = fill(T₁T₂ρˣρʸ(rand(), rand(), 0.0, 0.0), nv)
 
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-    signal = only(signal)
 
-    @test vec(signal) == zeros(ns * nr)
+    @test signal == zeros(ns * nr, nc)
 
     # if coil sensitivities are 0 everywhere, then signal should be 0
 
@@ -448,8 +446,8 @@ end
     coil_sensitivities = complex(zeros(nv, nc))
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-    @test all([vec(signal[j]) == zeros(ns * nr) for j = 1:nc])
-
+    @test signal == zeros(ns * nr, nc)
+    
 end
 
 @testset "Test Cartesian signal simulations on different computational resources" begin

@@ -101,22 +101,23 @@ function magnetization_to_signal(resource, magnetization, parameters, trajectory
         end
     end
 
-    return eachcol(signal)
+    return signal
 end
 
 function magnetization_to_signal(::CPUProcesses, dmagnetization::DArray, dparameters::DArray, trajectory, dcoordinates::DArray, dcoil_sensitivities::DArray)
 
-    # for some reason, assembling DArrays does not work with vectors but it does
-    # with matrices
-    vec_to_mat(x::AbstractVector) = reshape(x, length(x), 1)
-    # start computing local signal on each worker
-    dsignal = @sync [@spawnat p vec_to_mat(magnetization_to_signal(CPU1(), localpart(dmagnetization), localpart(dparameters), trajectory, localpart(dcoordinates), localpart(dcoil_sensitivities))) for p in workers()]
-    # assemble new DArray from the arrays on each worker
-    dsignal = DArray(permutedims(dsignal))
-    # sum results
-    dsignal = reduce(+, dsignal, dims=2)
-    # Don't convert to a local vector at this point
-    return dsignal
+    signal = @distributed (+) for p in workers()
+        magnetization_to_signal(
+            CPU1(), 
+            localpart(dmagnetization), 
+            localpart(dparameters), 
+            trajectory, 
+            localpart(dcoordinates), 
+            localpart(dcoil_sensitivities)
+        )
+    end
+
+    return signal
 end
 
 """
