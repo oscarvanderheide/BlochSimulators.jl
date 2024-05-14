@@ -45,8 +45,6 @@ export RadialTrajectory
 
 @inline function to_sample_point(mₑ, trajectory::RadialTrajectory, readout_idx, sample_idx, p)
 
-    # Note that m has already been phase-encoded
-
     # Read in constants
     R₂ = inv(p.T₂)
     ns = nsamplesperreadout(trajectory, readout_idx)
@@ -73,7 +71,7 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(ones(nr)), complex.(ones(nr)), 1:(360÷nr):360, 2)
+RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(ones(nr)), complex.(ones(nr)), 1:(360/nr):360, 2)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
 Base.getindex(tr::RadialTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc[idx], tr.φ[idx], tr.readout_oversampling)
