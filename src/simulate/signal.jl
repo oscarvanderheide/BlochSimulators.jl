@@ -108,10 +108,10 @@ function magnetization_to_signal(::CPUProcesses, dmagnetizationtization::DArray,
 end
 
 """
-    magnetization_to_signal!(signal, t, magnetizationtization, parameters, trajectory, coil_sensitivities)
+    magnetization_to_signal!(signal, time, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
 If `to_sample_point` has been defined for the provided trajectory, this (generic but not optimized)
-function computes the signal at timepoint `t` for all receive coils. It does so by computing
+function computes the signal at timepoint `time` for all receive coils. It does so by computing
 the readout- and sample indices for the given timepoint `t`, reading in the magnetization at echo
 time of the `r`-th readout, using `to_sample_point` to compute the magnetization at the `s`-th sample
 index, and then it integrates over all voxels (while scaling the magnetization with the proper coil
@@ -121,10 +121,10 @@ Better performance can likely be achieved by incorporating more trajectory-speci
 together with different loop orders.
 """
 
-@inline function magnetization_to_signal!(signal, t, magnetization, parameters, trajectory, coil_sensitivities)
+@inline function magnetization_to_signal!(signal, time, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
     # compute readout and sample indices for time point t
-    readout, sample = _get_readout_and_sample_idx(trajectory, t)
+    readout, sample = _get_readout_and_sample_idx(trajectory, time)
 
     nv = length(parameters) # nr of voxels
 
@@ -134,20 +134,21 @@ together with different loop orders.
     for voxel = 1:nv
 
         # load parameters and spatial coordinates
-        p = parameters[voxel]
+        @inbounds p = parameters[voxel]
         # load coil sensitivity for coil i in this voxel (SVector of length (# coils))
-        c = coil_sensitivities[voxel]
+        @inbounds c = coil_sensitivities[voxel]
         # load magnetization in voxel at echo time of the r-th readout
-        m = magnetization[readout,voxel]
+        @inbounds m = magnetization[readout,voxel]
         # compute magnetization at s-th sample of r-th readout
         mₛ = to_sample_point(m, trajectory, readout, sample, p)
         # add magnetization from this voxel, scaled with proton density
         # and coil sensitivity, to signal accumulator s
-        s += mₛ * (complex(p.ρˣ, p.ρʸ) * c)
+        ρ = complex(p.ρˣ, p.ρʸ)
+        s += mₛ * (ρ * c)
     end
 
     # store signal for each coil at time t
-    signal[t] = s
+    signal[time] = s
     return nothing
 end
 
