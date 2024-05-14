@@ -96,7 +96,7 @@ function magnetization_to_signal(resource, magnetization, parameters, trajectory
             for j in 1:ncoils
                 coilⱼ = @view coil_sensitivities[:, j]
                 signalⱼ = @view signal[:, j]
-                @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK magnetization_to_signal_kernel!(coilⱼ, magnetization, parameters, trajectory, coordinates, signalⱼ)
+                @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK magnetization_to_signal_kernel!(signalⱼ, magnetization, parameters, trajectory, coordinates, coilⱼ)
             end
         end
     end

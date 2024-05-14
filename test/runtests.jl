@@ -452,7 +452,7 @@ end
 
 end
 
-@testset "Test signal simulation on different computational resources" begin
+@testset "Test Cartesian signal simulations on different computational resources" begin
 
     # Simulate signal with CPU1() as reference
     nTR = 1000
@@ -462,6 +462,43 @@ end
     parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels]
 
     trajectory = CartesianTrajectory(nTR, 100)
+    nc = 2
+    coil_sensitivities = rand(ComplexF64, nvoxels, nc)
+    coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels]
+    signal_cpu1 = simulate_signal(CPU1(), sequence, parameters, trajectory, coordinates, coil_sensitivities)
+
+    # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
+    signal_cputhreads = simulate_signal(CPUThreads(), sequence, parameters, trajectory, coordinates, coil_sensitivities)
+    @test all([signal_cpu1[j] ≈ signal_cputhreads[j] for j = 1:nc])
+
+    # Now add workers and simulate with CPUProcesses() (distributed CPU)
+    # and check if outcome is the same
+    if workers() == [1]
+        addprocs(2, exeflags="--project=.")
+        @everywhere using BlochSimulators, ComputationalResources, DistributedArrays
+    end
+
+    signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coordinates), distribute(coil_sensitivities))
+    @test all([signal_cpu1[j] ≈ convert(Array, signal_cpuprocesses)[j] for j = 1:nc])
+
+    if CUDA.functional()
+        # Simulate with CUDALibs() (GPU) and check if outcome is the same
+        signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coordinates), gpu(coil_sensitivities))
+        @test all([signal_cpu1[j] ≈ collect(signal_cudalibs[j]) for j = 1:nc])
+    end
+
+end
+
+@testset "Test radial signal simulations on different computational resources" begin
+
+    # Simulate signal with CPU1() as reference
+    nTR = 1000
+    nvoxels = 1000
+    sequence = FISP2D(nTR)
+    sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
+    parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels]
+
+    trajectory = RadialTrajectory(nTR, 100)
     nc = 2
     coil_sensitivities = rand(ComplexF64, nvoxels, nc)
     coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels]
