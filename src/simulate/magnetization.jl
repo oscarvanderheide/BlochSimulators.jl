@@ -1,7 +1,7 @@
 """
     simulate_magnetization(resource, sequence, parameters)
 
-Simulate the magnetization at echo times (without any spatial encoding gradients applied)
+Simulate the magnetization response (typically the transverse magnetization at echo times without any spatial encoding gradients applied)
 for all combinations of tissue parameters contained in `parameters`.
 
 This function can also be used to generate dictionaries for MR Fingerprinting purposes.
@@ -12,122 +12,113 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 - `parameters::AbstractVector{<:AbstractTissueParameters}`: Vector with different combinations of tissue parameters
 
 # Returns
-- `output::AbstractArray`: Array of size (output_dimensions(sequence), length(parameters)) containing the
-    magnetization at echo times for all combinations of input tissue parameters.
+- `magnetization::AbstractArray`: Array of size (output_dimensions(sequence), length(parameters)) containing the
+    magnetization response of the sequence for all combinations of input tissue parameters.
 """
-function simulate_magnetization(resource, sequence, parameters) end
+function simulate_magnetization(resource::AbstractResource, sequence, parameters)
+
+    # Allocate array to store magnetization for each voxel
+    magnetization = _allocate_magnetization_array(resource, sequence, parameters)
+
+    # Simulate magnetization for each voxel
+    simulate_magnetization!(magnetization, resource, sequence, parameters)
+
+    return magnetization
+end
 
 """
-    simulate_magnetization(::CPU1, sequence, parameters)
+    simulate_magnetization!(magnetization, resource, sequence, parameters)
 
-Perform simulations on a single CPU by looping over all entries of `parameters`
-and performing Bloch simulations for each combination of tissue parameters.
+Simulate the magnetization at echo times (without any spatial encoding gradients applied)
+for all combinations of tissue parameters contained in `parameters`. Stores the magnetization response (typically the transverse magnetization at echo times)
+in the `magnetization` array. 
+
+- `magnetization::AbstractArray`: Pre-allocated output array to store simulation results.
+- `resource::AbstractResource`: Computational resource (e.g., `CPU1()`, `CPUThreads()`, `CPUProcesses()`, `CUDALibs()`).
+- `sequence::BlochSimulator`: Custom sequence struct
+- `parameters::AbstractVector{<:AbstractTissueParameters}`: Vector with different combinations of tissue parameters
 """
-function simulate_magnetization(::CPU1, sequence, parameters)
+function simulate_magnetization!(magnetization, resource, sequence, parameters) end
 
-    # intialize array to store magnetization for each voxel
-    output = _allocate_magnetization_array(CPU1(), sequence, parameters)
+"""
+    simulate_magnetization!(magnetization, ::CPUThreads, sequence, parameters)
 
-    # initialize state that gets updated during time integration
+Simulate magnetization for all elements of `parameters` using single CPU mode.
+"""
+function simulate_magnetization!(magnetization, ::CPU1, sequence, parameters)
     state = initialize_states(CPU1(), sequence)
-    # voxel dimension of output array
-    vd = length(size(output))
-    # loop over voxels
+    vd = length(size(magnetization))
     for voxel ∈ eachindex(parameters)
-        # run simulation for voxel
-        simulate_magnetization!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
+        simulate_magnetization!(selectdim(magnetization, vd, voxel), sequence, state, parameters[voxel])
     end
-
-    return output
+    return nothing
 end
 
 """
-    simulate_magnetization(::CPUThreads, sequence, parameters)
+    simulate_magnetization!(magnetization, ::CPUThreads, sequence, parameters)
 
-Perform simulations by looping over all entries of `parameters` in a
-multi-threaded fashion. See the [Julia documentation](https://docs.julialang.org/en/v1/manual/multi-threading/)
-for more details on how to launch Julia with multiple threads of execution.
+Simulate magnetization for all elements of `parameters` in a multi-threaded fashion.
 """
-function simulate_magnetization(::CPUThreads, sequence, parameters)
-
-    # intialize array to store magnetization for each voxel
-    output = _allocate_magnetization_array(CPUThreads(), sequence, parameters)
-
-    # voxel dimension of output array
-    vd = length(size(output))
-    # multi-threaded loop over voxels
+function simulate_magnetization!(magnetization, ::CPUThreads, sequence, parameters)
+    vd = length(size(magnetization))
     Threads.@threads for voxel ∈ eachindex(parameters)
-        # initialize state that gets updated during time integration
         state = initialize_states(CPUThreads(), sequence)
-        # run simulation for voxel
-        simulate_magnetization!(selectdim(output, vd, voxel), sequence, state, parameters[voxel])
+        simulate_magnetization!(selectdim(magnetization, vd, voxel), sequence, state, parameters[voxel])
     end
-
-    return output
+    return nothing
 end
 
 """
-    simulate_magnetization(::CPUProcesses, sequence, dparameters::DArray)
+    simulate_magnetization!(magnetization, ::CPUProcesses, sequence, parameters)
 
-Perform simulations using multiple, distributed CPUs. See the [Julia documentation](https://docs.julialang.org/en/v1/manual/distributed-computing/) and the [DistributedArrays](https://github.com/JuliaParallel/DistributedArrays.jl) package
-for more details on how to use Julia with multiple workers.
+Distributes the simulations over multiple CPU workers.
 """
-function simulate_magnetization(::CPUProcesses, sequence, dparameters::DArray)
-    # DArrays are from the package DistributedArrays.
-    # With [:lp] the local part of of such an array is used on a worker
-    doutput = @sync [@spawnat p simulate_magnetization(CPU1(), sequence, dparameters[:lp]) for p in workers()]
-    # On each worker, a part of the magnetization array is now computed.
-    # Turn it into a single DArray with the syntax below
-    return DArray(permutedims(doutput))
+function simulate_magnetization!(magnetization, ::CPUProcesses, sequence, parameters)
+    if !(parameters isa DArray)
+        parameters = distribute(parameters)
+    end
+    # Spawn tasks on each worker
+    @sync [@spawnat p simulate_magnetization!(magnetization[:lp], CPU1(), sequence, parameters[:lp]) for p in workers()]
+    return nothing
 end
 
-# If parameters are provided as a regular array instead of a DistributedArray, distribute them first
-simulate_magnetization(resource::CPUProcesses, sequence, parameters) = simulate_magnetization(resource, sequence, distribute(parameters))
-
 """
-    simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
+    simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters::CuArray)
 
-Perform simulations on NVIDIA GPU hardware by making use of the [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) package.
-Each thread perform Bloch simulations for a single entry of the `parameters` array.
+Perform the simulation on an NVIDIA GPU.
 """
-function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
-
-    # intialize array to store magnetization for each voxel
-    output = _allocate_magnetization_array(CUDALibs(), sequence, parameters)
-
-    # compute nr of threadblocks to be used on GPU
-    # threads per block hardcoded for now
+function simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters::CuArray)
     nr_voxels = length(parameters)
     nr_blocks = cld(nr_voxels, THREADS_PER_BLOCK)
 
-    # define kernel function to be run by each thread on gpu
-    magnetization_kernel!(output, sequence, parameters) = begin
+    # define kernel
+    magnetization_kernel!(magnetization, sequence, parameters) = begin
 
         # get voxel index
         voxel = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-
+        
         # initialize state that gets updated during time integration
         states = initialize_states(CUDALibs(), sequence)
-
-        if voxel <= length(parameters)
-            # run simulation for voxel
-            simulate_magnetization!(view(output,:,voxel), sequence, states, parameters[voxel])
+        
+        # do nothing if voxel index is out of bounds
+        if voxel > length(parameters)
+            return nothing
         end
-
-        return nothing
+        
+        # run simulation for voxel
+        simulate_magnetization!(
+            view(magnetization,:,voxel), 
+            sequence, 
+            states, 
+            @inbounds parameters[voxel]
+        )
     end
 
-    # launch kernels
     CUDA.@sync begin
-        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_kernel!(output, sequence, parameters)
+        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_kernel!(magnetization, sequence, parameters)
     end
-
-    return output
+    return nothing
 end
-
-# If parameters are not provided as CuArray, send them (and sequence struct) to gpu first
-simulate_magnetization(resource::CUDALibs, sequence, parameters) = simulate_magnetization(resource, gpu(sequence), gpu(parameters))
-
 
 """
     _allocate_magnetization_array(resource, sequence, parameters)
