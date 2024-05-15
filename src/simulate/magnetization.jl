@@ -26,7 +26,7 @@ and performing Bloch simulations for each combination of tissue parameters.
 function simulate_magnetization(::CPU1, sequence, parameters)
 
     # intialize array to store magnetization for each voxel
-    output = _allocate_output(CPU1(), sequence, parameters)
+    output = _allocate_magnetization_array(CPU1(), sequence, parameters)
 
     # initialize state that gets updated during time integration
     state = initialize_states(CPU1(), sequence)
@@ -51,7 +51,7 @@ for more details on how to launch Julia with multiple threads of execution.
 function simulate_magnetization(::CPUThreads, sequence, parameters)
 
     # intialize array to store magnetization for each voxel
-    output = _allocate_output(CPUThreads(), sequence, parameters)
+    output = _allocate_magnetization_array(CPUThreads(), sequence, parameters)
 
     # voxel dimension of output array
     vd = length(size(output))
@@ -93,7 +93,7 @@ Each thread perform Bloch simulations for a single entry of the `parameters` arr
 function simulate_magnetization(::CUDALibs, sequence, parameters::CuArray)
 
     # intialize array to store magnetization for each voxel
-    output = _allocate_output(CUDALibs(), sequence, parameters)
+    output = _allocate_magnetization_array(CUDALibs(), sequence, parameters)
 
     # compute nr of threadblocks to be used on GPU
     # threads per block hardcoded for now
@@ -130,29 +130,41 @@ simulate_magnetization(resource::CUDALibs, sequence, parameters) = simulate_magn
 
 
 """
-    _allocate_output(resource, sequence::BlochSimulator, parameters)
+    _allocate_magnetization_array(resource, sequence, parameters)
 
 Allocate an array to store the output of the Bloch simulations (per voxel, echo times only)
 to be performed with the `sequence`. For each `BlochSimulator`, methods should have been
 added to `output_eltype` and `output_dimensions` for this function to work properly.
+
+# Arguments
+- `resource::AbstractResource`: The computational resource (e.g., CPU, GPU) to be used for the allocation.
+- `sequence::BlochSimulator{T}`: The simulator, which defines the type of simulation to be performed.
+- `parameters::AbstractVector{<:AbstractTissueParameters{N,T}}`: A vector with each element containing the tissue parameters for a voxel.
+
+# Returns
+- `magnetization_array`: An array allocated on the specified `resource`, formatted to store the simulation results for each voxel across the specified echo times.
 """
-function _allocate_output(resource, sequence::BlochSimulator, parameters)
+function _allocate_magnetization_array(
+    resource::AbstractResource, 
+    sequence::BlochSimulator{T}, 
+    parameters::AbstractVector{<:AbstractTissueParameters{N,T}}
+) where {N,T}
 
-    type = output_eltype(sequence)
-    dimensions = output_dimensions(sequence)
+    _eltype = output_eltype(sequence)
+    _size = (output_dimensions(sequence)..., length(parameters))
 
-    if resource == CUDALibs()
-        # allocate a CuArray of zeros on GPU
-        output = CUDA.zeros(type, dimensions..., length(parameters))
-    elseif resource == CPUProcesses()
-        # allocate a DArray of zeros
-        distribution = append!(fill(1, length(dimensions)), nworkers())
-        output = dzeros(type, (dimensions..., length(parameters)), workers(), distribution)
-    else
-        # allocate an Array of zeros on the local CPU
-        output = zeros(type, dimensions..., length(parameters))
-    end
-
-    return output
+    _allocate_array_on_resource(resource, _eltype, _size)
 end
 
+function _allocate_array_on_resource(::Union{CPU1,CPUThreads}, _eltype, _size)
+    return zeros(_eltype, _size...)
+end
+
+function _allocate_array_on_resource(::CUDALibs, _eltype, _size)
+    return CUDA.zeros(_eltype, _size...)
+end
+
+function _allocate_array_on_resource(::CPUProcesses, _eltype, _size)
+    distribution = append!(fill(1(_size)), nworkers())
+    return dzeros(_eltype, (_size...), workers(), distribution)
+end
