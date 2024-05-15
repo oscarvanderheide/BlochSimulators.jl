@@ -100,8 +100,8 @@ CUDA.@time signal = simulate_signal(resource, magnetization, parameters, traject
 signal = collect(signal)
 
 # Let's look at fft images of the signals from the two different coils
-signal₁ = first.(signal)
-signal₂ = last.(signal)
+signal₁ = signal[:,:,1]
+signal₂ = signal[:,:,2]
 
 @. signal₁[2:2:end] *= -1 # correct for phase cycling
 @. signal₂[2:2:end] *= -1 # correct for phase cycling
