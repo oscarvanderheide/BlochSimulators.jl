@@ -38,7 +38,7 @@ end
 @adapt_structure FISP2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::FISP2D) = length(sequence.RF_train)
+output_size(sequence::FISP2D) = length(sequence.RF_train)
 output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 
 # If RF doesn't have phase, configuration states will be real

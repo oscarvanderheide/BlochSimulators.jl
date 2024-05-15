@@ -84,13 +84,13 @@ function output_eltype(::BlochSimulator)
 end
 
 """
-    output_dimensions(::BlochSimulator)
+    output_size(::BlochSimulator)
 
 For each `<:BlochSimulator`, a method should be added to this function that
 specifies the output size of the simulation for a *single* `::AbstractTissueParameters`.
 """
-function output_dimensions(::BlochSimulator)
-    @warn "Must implement output_dimensions"
+function output_size(::BlochSimulator)
+    @warn "Must implement output_size"
 end
 
 """
@@ -103,7 +103,7 @@ as well as GPU compatibility it is important that the implementation is type-sta
 non-allocating.
 
 # Arguments
-- `magnetization`: Pre-allocated array with `size(magnetization) = output_dimensions(sequence)` and
+- `magnetization`: Pre-allocated array with `size(magnetization) = output_size(sequence)` and
     `eltype(magnetization) = output_eltype(sequence)` to store the output of the simulation.
 - `sequence`: Sequence struct containing fields that are used to implement the actual pulse
     sequence.

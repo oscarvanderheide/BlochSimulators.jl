@@ -12,7 +12,7 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 - `parameters::AbstractVector{<:AbstractTissueParameters}`: Vector with different combinations of tissue parameters
 
 # Returns
-- `magnetization::AbstractArray`: Array of size (output_dimensions(sequence), length(parameters)) containing the
+- `magnetization::AbstractArray`: Array of size (output_size(sequence), length(parameters)) containing the
     magnetization response of the sequence for all combinations of input tissue parameters.
 """
 function simulate_magnetization(resource::AbstractResource, sequence, parameters)
@@ -125,7 +125,7 @@ end
 
 Allocate an array to store the output of the Bloch simulations (per voxel, echo times only)
 to be performed with the `sequence`. For each `BlochSimulator`, methods should have been
-added to `output_eltype` and `output_dimensions` for this function to work properly.
+added to `output_eltype` and `output_size` for this function to work properly.
 
 # Arguments
 - `resource::AbstractResource`: The computational resource (e.g., CPU, GPU) to be used for the allocation.
@@ -142,7 +142,7 @@ function _allocate_magnetization_array(
 ) where {N,T}
 
     _eltype = output_eltype(sequence)
-    _size = (output_dimensions(sequence)..., length(parameters))
+    _size = (output_size(sequence)..., length(parameters))
 
     _allocate_array_on_resource(resource, _eltype, _size)
 end

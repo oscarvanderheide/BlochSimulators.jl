@@ -27,7 +27,7 @@ end
 export Generic2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::Generic2D) = sum(sequence.sample)
+output_size(sequence::Generic2D) = sum(sequence.sample)
 output_eltype(sequence::Generic2D) = Isochromat{eltype(sequence.GR)}
 
 @inline function simulate_magnetization!(output, sequence::Generic2D{T}, m, (p::AbstractTissueParameters)) where T

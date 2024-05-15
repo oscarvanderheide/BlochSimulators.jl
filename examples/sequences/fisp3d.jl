@@ -48,7 +48,7 @@ FISP3D(RF_train,TR,TE,max_state,TI,TW,repetitions,inversion_prepulse) =
 @adapt_structure FISP3D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::FISP3D) = length(sequence.RF_train)
+output_size(sequence::FISP3D) = length(sequence.RF_train)
 output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 
 # If RF doesn't have phase, configuration states will be real

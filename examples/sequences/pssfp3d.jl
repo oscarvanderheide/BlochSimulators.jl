@@ -29,7 +29,7 @@ end
 export pSSFP3D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::pSSFP3D) = length(sequence.RF_train)
+output_size(sequence::pSSFP3D) = length(sequence.RF_train)
 output_eltype(sequence::pSSFP3D) = eltype(sequence.RF_train)
 
 # Sequence implementation

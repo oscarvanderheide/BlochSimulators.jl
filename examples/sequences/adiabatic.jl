@@ -15,7 +15,7 @@ struct AdiabaticInversion{T<:Real, V<:AbstractVector} <: IsochromatSimulator{T}
     Δt::T
 end
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::AdiabaticInversion) = 1 # Only record the magnetization at the end of the inversion pulse
+output_size(sequence::AdiabaticInversion) = 1 # Only record the magnetization at the end of the inversion pulse
 output_eltype(sequence::AdiabaticInversion{T,V}) where {T,V} = Isochromat{T}
 
 # To be able to change precision and send to CUDA device

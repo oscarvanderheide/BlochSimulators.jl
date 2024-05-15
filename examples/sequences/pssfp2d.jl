@@ -34,7 +34,7 @@ end
 export pSSFP2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::pSSFP2D) = length(sequence.RF_train)
+output_size(sequence::pSSFP2D) = length(sequence.RF_train)
 output_eltype(sequence::pSSFP2D) = eltype(sequence.RF_train)
 
 # Sequence implementation
