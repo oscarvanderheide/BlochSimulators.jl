@@ -18,3 +18,6 @@ struct Coordinates{T<:Real}
 end
 
 const xyz = Coordinates
+
+@functor Coordinates
+@adapt_structure Coordinates
