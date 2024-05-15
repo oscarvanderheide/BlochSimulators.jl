@@ -156,15 +156,31 @@ function _allocate_magnetization_array(
     _allocate_array_on_resource(resource, _eltype, _size)
 end
 
+"""
+    _allocate_array_on_resource(::Union{CPU1,CPUThreads}, _eltype, _size)
+
+Allocate a CPU array for use with a single CPU or multiple threads.
+"""
 function _allocate_array_on_resource(::Union{CPU1,CPUThreads}, _eltype, _size)
     return zeros(_eltype, _size...)
 end
+"""
+    _allocate_array_on_resource(::CUDALibs, _eltype, _size)
 
+Specialized allocation for CUDA-enabled devices.
+"""
 function _allocate_array_on_resource(::CUDALibs, _eltype, _size)
     return CUDA.zeros(_eltype, _size...)
 end
 
+"""
+    _allocate_array_on_resource(::CPUProcesses, _eltype, _size)
+
+Allocate a distributed array for use with multiple CPU processes. The array is distributed
+in the "voxel" dimension (last dimension) over the workers.
+"""
 function _allocate_array_on_resource(::CPUProcesses, _eltype, _size)
-    distribution = append!(fill(1(_size)), nworkers())
-    return dzeros(_eltype, (_size...), workers(), distribution)
+    distribution = ones(Int, length(_size)-1)
+    append!(distribution, nworkers())
+    dzeros(_eltype, _size, workers(), distribution)
 end
