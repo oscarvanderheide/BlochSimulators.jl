@@ -132,6 +132,7 @@ function magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetizatio
     Δkₓ = trajectory.Δk_adc
     ns = trajectory.nsamplesperreadout
     nr = trajectory.nreadouts
+    nc = size(coil_sensitivities, 2)
 
     # Dynamics during readout (gradient encoding, T2 decay, B0 rotation)
     # are different per voxel but the same for each readout and sample point
@@ -140,18 +141,17 @@ function magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetizatio
     # To compute signal at all sample points with one matrix-matrix multiplication,
     # we pre-compute a readout_dynamics matrix instead
     Eˢ = @. E^(-(ns ÷ 2):(ns÷2)-1)'
-    # Perform main computation
-    signal = map(eachcol(coil_sensitivities)) do coil
-        transpose(Eˢ .* (ρ .* coil)) * transpose(magnetization)
+    # Allocate output array
+    signal = similar(magnetization, (ns, nr, nc))
+    # Perform main computations
+    for j in 1:nc
+        signalⱼ = @view signal[:,:,j]
+        coilⱼ = @view coil_sensitivities[:,j]
+        mul!(signalⱼ, transpose( (Eˢ .* (ρ .* coilⱼ))), transpose(magnetization))
     end
-
-    # Final checks
-    @assert length(signal) == size(coil_sensitivities, 2)
-    @assert size(signal[1]) == (ns, nr)
 
     return signal
 end
-
 
 ### Interface requirements
 
