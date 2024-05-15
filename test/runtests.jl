@@ -504,7 +504,7 @@ end
 
     # Now simulate with CPUThreads() (multi-threaded CPU) and check if outcome is the same
     signal_cputhreads = simulate_signal(CPUThreads(), sequence, parameters, trajectory, coordinates, coil_sensitivities)
-    @test all([signal_cpu1[j] ≈ signal_cputhreads[j] for j = 1:nc])
+    @test signal_cpu1 ≈ signal_cputhreads
 
     # Now add workers and simulate with CPUProcesses() (distributed CPU)
     # and check if outcome is the same
@@ -514,12 +514,12 @@ end
     end
 
     signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coordinates), distribute(coil_sensitivities))
-    @test all([signal_cpu1[j] ≈ convert(Array, signal_cpuprocesses)[j] for j = 1:nc])
+    @test signal_cpu1 ≈ signal_cpuprocesses
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
         signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coordinates), gpu(coil_sensitivities))
-        @test all([signal_cpu1[j] ≈ collect(signal_cudalibs[j]) for j = 1:nc])
+        @test signal_cpu1 ≈ convert(Array, signal_cudalibs)
     end
 
 end
