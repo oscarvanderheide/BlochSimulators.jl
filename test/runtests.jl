@@ -476,8 +476,8 @@ end
         @everywhere using BlochSimulators, ComputationalResources, DistributedArrays
     end
 
-    # signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coordinates), distribute(coil_sensitivities))
-    # @test signal_cpu1 ≈ signal_cpuprocesses
+    signal_cpuprocesses = simulate_signal(CPUProcesses(), sequence, distribute(parameters), trajectory, distribute(coordinates), distribute(coil_sensitivities))
+    @test signal_cpu1 ≈ signal_cpuprocesses
 
     if CUDA.functional()
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
