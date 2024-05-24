@@ -31,19 +31,12 @@ end
 
 Simulate the magnetization at echo times (without any spatial encoding gradients applied)
 for all combinations of tissue parameters contained in `parameters`. Stores the magnetization response (typically the transverse magnetization at echo times)
-in the `magnetization` array. 
+in the `magnetization` array.
 
 - `magnetization::AbstractArray`: Pre-allocated output array to store simulation results.
 - `resource::AbstractResource`: Computational resource (e.g., `CPU1()`, `CPUThreads()`, `CPUProcesses()`, `CUDALibs()`).
 - `sequence::BlochSimulator`: Custom sequence struct
 - `parameters::AbstractVector{<:AbstractTissueParameters}`: Vector with different combinations of tissue parameters
-"""
-function simulate_magnetization!(magnetization, resource, sequence, parameters) end
-
-"""
-    simulate_magnetization!(magnetization, ::CPUThreads, sequence, parameters)
-
-Simulate magnetization for all elements of `parameters` using single CPU mode.
 """
 function simulate_magnetization!(magnetization, ::CPU1, sequence, parameters)
     state = initialize_states(CPU1(), sequence)
@@ -54,11 +47,6 @@ function simulate_magnetization!(magnetization, ::CPU1, sequence, parameters)
     return nothing
 end
 
-"""
-    simulate_magnetization!(magnetization, ::CPUThreads, sequence, parameters)
-
-Simulate magnetization for all elements of `parameters` in a multi-threaded fashion.
-"""
 function simulate_magnetization!(magnetization, ::CPUThreads, sequence, parameters)
     vd = length(size(magnetization))
     Threads.@threads for voxel ∈ eachindex(parameters)
@@ -68,25 +56,12 @@ function simulate_magnetization!(magnetization, ::CPUThreads, sequence, paramete
     return nothing
 end
 
-"""
-    simulate_magnetization!(magnetization, ::CPUProcesses, sequence, parameters)
-
-Distributes the simulations over multiple CPU workers.
-"""
-function simulate_magnetization!(magnetization, ::CPUProcesses, sequence, parameters)
-    if !(parameters isa DArray)
-        parameters = distribute(parameters)
-    end
+function simulate_magnetization!(magnetization, ::CPUProcesses, sequence, parameters::DArray)
     # Spawn tasks on each worker
     @sync [@spawnat p simulate_magnetization!(magnetization[:lp], CPU1(), sequence, parameters[:lp]) for p in workers()]
     return nothing
 end
 
-"""
-    simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters::CuArray)
-
-Perform the simulation on an NVIDIA GPU.
-"""
 function simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters::CuArray)
     nr_voxels = length(parameters)
     nr_blocks = cld(nr_voxels, THREADS_PER_BLOCK)
@@ -96,26 +71,26 @@ function simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters
 
         # get voxel index
         voxel = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-        
+
         # initialize state that gets updated during time integration
         states = initialize_states(CUDALibs(), sequence)
-        
+
         # do nothing if voxel index is out of bounds
         if voxel > length(parameters)
             return nothing
         end
-        
+
         # run simulation for voxel
         simulate_magnetization!(
-            view(magnetization,:,voxel), 
-            sequence, 
-            states, 
+            view(magnetization, :, voxel),
+            sequence,
+            states,
             @inbounds parameters[voxel]
         )
     end
 
     CUDA.@sync begin
-        @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_kernel!(magnetization, sequence, parameters)
+        @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK magnetization_kernel!(magnetization, sequence, parameters)
     end
     return nothing
 end
@@ -136,8 +111,8 @@ added to `output_eltype` and `output_size` for this function to work properly.
 - `magnetization_array`: An array allocated on the specified `resource`, formatted to store the simulation results for each voxel across the specified echo times.
 """
 function _allocate_magnetization_array(
-    resource::AbstractResource, 
-    sequence::BlochSimulator{T}, 
+    resource::AbstractResource,
+    sequence::BlochSimulator{T},
     parameters::AbstractVector{<:AbstractTissueParameters{N,T}}
 ) where {N,T}
 
@@ -148,30 +123,20 @@ function _allocate_magnetization_array(
 end
 
 """
-    _allocate_array_on_resource(::Union{CPU1,CPUThreads}, _eltype, _size)
+    _allocate_array_on_resource(resource::AbstractResource, _eltype, _size)
 
-Allocate a CPU array for use with a single CPU or multiple threads.
+Allocate an array on the specified `resource` with the given element type `_eltype` and size `_size`. If `resource` is `CPU1()` or `CPUThreads()`, the array is allocated on the CPU. If `resource` is `CUDALibs()`, the array is allocated on the GPU. For `CPUProcesses()`, the array is distributed in the "voxel"-dimension over multiple CPU workers.
 """
 function _allocate_array_on_resource(::Union{CPU1,CPUThreads}, _eltype, _size)
     return zeros(_eltype, _size...)
 end
-"""
-    _allocate_array_on_resource(::CUDALibs, _eltype, _size)
 
-Specialized allocation for CUDA-enabled devices.
-"""
 function _allocate_array_on_resource(::CUDALibs, _eltype, _size)
     return CUDA.zeros(_eltype, _size...)
 end
 
-"""
-    _allocate_array_on_resource(::CPUProcesses, _eltype, _size)
-
-Allocate a distributed array for use with multiple CPU processes. The array is distributed
-in the "voxel" dimension (last dimension) over the workers.
-"""
 function _allocate_array_on_resource(::CPUProcesses, _eltype, _size)
-    distribution = ones(Int, length(_size)-1)
+    distribution = ones(Int, length(_size) - 1)
     append!(distribution, nworkers())
     dzeros(_eltype, _size, workers(), distribution)
 end
