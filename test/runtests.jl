@@ -310,7 +310,7 @@ end
         @everywhere using BlochSimulators, ComputationalResources
     end
 
-    magnetization_cpuprocesses = simulate_magnetization(CPUProcesses(), sequence, parameters)
+    magnetization_cpuprocesses = simulate_magnetization(CPUProcesses(), sequence, distribute(parameters))
 
     @test magnetization_cpu1 ≈ convert(Array, magnetization_cpuprocesses)
 
@@ -428,7 +428,7 @@ end
     resource = CPU1()
 
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-  
+
     @test signal == fill(nv, ns * nr, nc)
 
     # if proton density is 0, then signal should be 0
@@ -447,7 +447,7 @@ end
     signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
     @test signal == zeros(ns * nr, nc)
-    
+
 end
 
 @testset "Test Cartesian signal simulations on different computational resources" begin
