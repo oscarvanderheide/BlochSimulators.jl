@@ -9,7 +9,7 @@ for all threads within a block simultaneously. We then take a `@view` and wrap i
 Without the `SizedArray`, the type would be long and unreadable. By wrapping, we can then
 simply dispatch on a `SizedArray` instead.
 """
-const EPGStates = Union{MMatrix{3}, SizedMatrix{3}}
+const EPGStates = Union{MMatrix{3},SizedMatrix{3}}
 
 """
     F₊(Ω)
@@ -17,21 +17,21 @@ const EPGStates = Union{MMatrix{3}, SizedMatrix{3}}
 View into the first row of the configuration state matrix `Ω`,
 corresponding to the `F₊` states.
 """
-F₊(Ω) = OffsetVector(view(Ω,1,:), 0:size(Ω,2)-1)
+F₊(Ω) = OffsetVector(view(Ω, 1, :), 0:size(Ω, 2)-1)
 """
     F̄₋(Ω)
 
 View into the second row of the configuration state matrix `Ω`,
 corresponding to the `F̄₋` states.
 """
-F̄₋(Ω) = OffsetVector(view(Ω,2,:), 0:size(Ω,2)-1)
+F̄₋(Ω) = OffsetVector(view(Ω, 2, :), 0:size(Ω, 2)-1)
 """
     Z(Ω)
 
 View into the third row of the configuration state matrix `Ω`,
 corresponding to the `Z` states.
 """
-Z(Ω) = OffsetVector(view(Ω,3,:), 0:size(Ω,2)-1)
+Z(Ω) = OffsetVector(view(Ω, 3, :), 0:size(Ω, 2)-1)
 
 ## KERNELS ###
 
@@ -54,7 +54,7 @@ and for these sequences a method needs to be added to this function.
 Initialize an `MMatrix` of EPG states on CPU to be used throughout the simulation.
 """
 @inline function initialize_states(::AbstractResource, sequence::EPGSimulator{T,Ns}) where {T,Ns}
-    Ω = @MMatrix zeros(Ω_eltype(sequence),3,Ns)
+    Ω = @MMatrix zeros(Ω_eltype(sequence), 3, Ns)
 end
 
 """
@@ -69,7 +69,7 @@ Initialize an array of EPG states on a CUDA GPU to be used throughout the simula
     # get view for configuration states of this thread's voxel
     # note that this function gets called inside a CUDA kernel
     # so it has has access to threadIdx
-    Ω_view = view(Ω_shared,:,:,threadIdx().x)
+    Ω_view = view(Ω_shared, :, :, threadIdx().x)
     # wrap in a SizedMatrix
     Ω = SizedMatrix{3,Ns}(Ω_view)
     return Ω
@@ -96,7 +96,7 @@ end
 Mixing of states due to RF pulse. Magnitude of RF is the flip angle in degrees.
 Phase of RF is the phase of the pulse. If RF is real, the computations simplify a little bit.
 """
-@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where T<:Union{Complex, Quantity{<:Complex}}
+@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where {T<:Union{Complex,Quantity{<:Complex}}}
 
     # angle of RF pulse, convert from degrees to radians
     α = deg2rad(abs(RF))
@@ -104,26 +104,30 @@ Phase of RF is the phase of the pulse. If RF is real, the computations simplify 
     # phase of RF pulse
     φ = angle(RF)
 
-    x = α/2
+    if iszero(α)
+        return nothing
+    end
+
+    x = α / 2
     sinx, cosx = sincos(x)
     sin²x, cos²x = sinx^2, cosx^2
     # double angle formula
-    sinα, cosα = 2*sinx*cosx, 2*cos²x - one(α)
+    sinα, cosα = 2 * sinx * cosx, 2 * cos²x - one(α)
     # phase stuff
     sinφ, cosφ = sincos(φ)
     # again double angle formula
-    sin2φ, cos2φ = 2*sinφ*cosφ, 2*cosφ^2 - one(α)
+    sin2φ, cos2φ = 2 * sinφ * cosφ, 2 * cosφ^2 - one(α)
     # complex exponentials
-    ℯⁱᵠ  = complex(cosφ,  sinφ)
+    ℯⁱᵠ = complex(cosφ, sinφ)
     ℯ²ⁱᵠ = complex(cos2φ, sin2φ)
-    ℯ⁻ⁱᵠ  = conj(ℯⁱᵠ)
+    ℯ⁻ⁱᵠ = conj(ℯⁱᵠ)
     ℯ⁻²ⁱᵠ = conj(ℯ²ⁱᵠ)
     # compute individual components of rotation matrix
     R₁₁, R₁₂, R₁₃ = cos²x, ℯ²ⁱᵠ * sin²x, -im * ℯⁱᵠ * sinα
     R₂₁, R₂₂, R₂₃ = ℯ⁻²ⁱᵠ * sin²x, cos²x, 1im * ℯ⁻ⁱᵠ * sinα #im gives issues with CUDA profiling, 1im works
     R₃₁, R₃₂, R₃₃ = -im * ℯ⁻ⁱᵠ * sinα / 2, 1im * ℯⁱᵠ * sinα / 2, cosα
     # assemble static matrix
-    R = SMatrix{3,3}(R₁₁,R₂₁,R₃₁,R₁₂,R₂₂,R₃₂,R₁₃,R₂₃,R₃₃)
+    R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
     # apply rotation matrix to each state
     Ω .= R * Ω
     return nothing
@@ -133,22 +137,27 @@ end
 
 If RF is real, the calculations simplify (and probably Ω is real too, reducing memory (access) requirements).
 """
-@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where T<:Union{Real, Quantity{<:Real}}
+@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where {T<:Union{Real,Quantity{<:Real}}}
 
     # angle of RF pulse, convert from degrees to radians
     α = deg2rad(RF)
     hasB₁(p) && (α *= p.B₁)
-    x = α/2
+
+    if iszero(α)
+        return nothing
+    end
+
+    x = α / 2
     sinx, cosx = sincos(x)
     sin²x, cos²x = sinx^2, cosx^2
     # double angle formula
-    sinα, cosα = 2*sinx*cosx, 2*cos²x - one(α)
+    sinα, cosα = 2 * sinx * cosx, 2 * cos²x - one(α)
     # compute individual components of rotation matrix
     R₁₁, R₁₂, R₁₃ = cos²x, -sin²x, -sinα
     R₂₁, R₂₂, R₂₃ = -sin²x, cos²x, -sinα
     R₃₁, R₃₂, R₃₃ = sinα / 2, sinα / 2, cosα
     # assemble static matrix
-    R = SMatrix{3,3}(R₁₁,R₂₁,R₃₁,R₁₂,R₂₂,R₃₂,R₁₃,R₂₃,R₃₃)
+    R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
     # apply rotation matrix to each state
     Ω .= R * Ω
 
@@ -160,8 +169,8 @@ end
 
 Rotate `F₊` and `F̄₋` states under the influence of `eⁱᶿ = exp(i * ΔB₀ * Δt)`
 """
-@inline function rotate!(Ω::EPGStates, eⁱᶿ::T) where T
-    @. Ω[1:2,:] *= (eⁱᶿ,conj(eⁱᶿ))
+@inline function rotate!(Ω::EPGStates, eⁱᶿ::T) where {T}
+    @. Ω[1:2, :] *= (eⁱᶿ, conj(eⁱᶿ))
 end
 
 # Decay
@@ -181,7 +190,7 @@ end
 Rotate and decay combined
 """
 @inline function rotate_decay!(Ω::EPGStates, E₁, E₂, eⁱᶿ)
-    @. Ω *= (E₂*eⁱᶿ, E₂*conj(eⁱᶿ), complex(E₁))
+    @. Ω *= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
 end
 
 # Regrowth
