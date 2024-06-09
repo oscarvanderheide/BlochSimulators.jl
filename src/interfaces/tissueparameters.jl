@@ -76,10 +76,10 @@ end
 for P in subtypes(AbstractTissueParameters)
 
     # Create new struct name by appending new fieldnames to name of struct
-    structname_ρˣρʸ = Symbol(fieldnames(P)...,:ρˣρʸ)
+    structname_ρˣρʸ = Symbol(fieldnames(P)..., :ρˣρʸ)
 
     # Create new tuples of fieldnames
-    fnames_ρˣρʸ = (fieldnames(P)...,:ρˣ,:ρʸ)
+    fnames_ρˣρʸ = (fieldnames(P)..., :ρˣ, :ρʸ)
 
     fnames_typed_ρˣρʸ = [:($(fn)::T) for fn ∈ fnames_ρˣρʸ]
 
@@ -89,7 +89,7 @@ for P in subtypes(AbstractTissueParameters)
         """
             $($(structname_ρˣρʸ)){T} <: AbstractTissueParameters{$($(N+2)),T}
         """
-        struct $(structname_ρˣρʸ){T} <: AbstractTissueParameters{$(N+2),T}
+        struct $(structname_ρˣρʸ){T} <: AbstractTissueParameters{$(N + 2),T}
             $(fnames_typed_ρˣρʸ...)
         end
     end
@@ -97,7 +97,7 @@ end
 
 # The following is needed to make sure that operations with/on subtypes of AbstractTissueParameters return the appropriate type, see the FieldVector example from StaticArrays documentation
 for S in subtypes(AbstractTissueParameters)
-    @eval StaticArrays.similar_type(::Type{$(S){T}}, ::Type{T}, s::Size{(fieldcount($(S)),)}) where T = $(S){T}
+    @eval StaticArrays.similar_type(::Type{$(S){T}}, ::Type{T}, s::Size{(fieldcount($(S)),)}) where {T} = $(S){T}
 end
 
 # Define trait functions to check whether B₁ or B₀ is part of the type

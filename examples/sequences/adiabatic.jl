@@ -9,7 +9,7 @@ could be used as field in other sequence structs.
 - `Δω::V` # Time-dependent frequency modulation
 - `Δt::T`: Time discretization step, assumed constant
 """
-struct AdiabaticInversion{T<:Real, V<:AbstractVector} <: IsochromatSimulator{T}
+struct AdiabaticInversion{T<:Real,V<:AbstractVector} <: IsochromatSimulator{T}
     γΔtA::V
     Δω::V
     Δt::T
@@ -25,18 +25,18 @@ output_eltype(sequence::AdiabaticInversion{T,V}) where {T,V} = Isochromat{T}
 ## Sequence implementation
 function simulate_magnetization!(output, sequence::AdiabaticInversion, m, p::AbstractTissueParameters)
 
-    T₁,T₂ = p.T₁, p.T₂
-    E₁,E₂ = BlochSimulators.E₁(m, sequence.Δt, T₁), BlochSimulators.E₂(m, sequence.Δt, T₂)
+    T₁, T₂ = p.T₁, p.T₂
+    E₁, E₂ = BlochSimulators.E₁(m, sequence.Δt, T₁), BlochSimulators.E₂(m, sequence.Δt, T₂)
 
     m = initial_conditions(m)
 
-    γΔtA,Δω,Δt = sequence.γΔtA, sequence.Δω, sequence.Δt
+    γΔtA, Δω, Δt = sequence.γΔtA, sequence.Δω, sequence.Δt
 
     𝟘 = zero(Δt)
 
     @inbounds for t in eachindex(sequence.γΔtA)
 
-        m = rotate(m, γΔtA[t], 𝟘, 𝟘, Δt, p, Δt*Δω[t])
+        m = rotate(m, γΔtA[t], 𝟘, 𝟘, Δt, p, Δt * Δω[t])
         m = decay(m, E₁, E₂)
         m = regrowth(m, E₁)
 

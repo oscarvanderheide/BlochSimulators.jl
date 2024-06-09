@@ -28,7 +28,7 @@ in one time step from the echo time to the start of the next RF excitation.
 - 'wait_spoiling::Bool': Spoiling is assumed before the start of a next cycle
 """
 # Create struct that holds parameters necessary for performing FISP simulations based on the EPG model
-struct FISP3D{T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}} <: EPGSimulator{T,Ns}
+struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator{T,Ns}
     RF_train::U
     TR::T
     TE::T
@@ -40,8 +40,8 @@ struct FISP3D{T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}} <: EPGSimulat
     wait_spoiling::Bool
 end
 # provide default value of wait_spoiling for backward compatibility
-FISP3D(RF_train,TR,TE,max_state,TI,TW,repetitions,inversion_prepulse) =
-                    FISP3D(RF_train,TR,TE,max_state,TI,TW,repetitions,inversion_prepulse,false)
+FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse) =
+    FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, false)
 
 # To be able to change precision and send to CUDA device
 @functor FISP3D
@@ -64,14 +64,14 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
     TR, TE, TI = sequence.TR, sequence.TE, sequence.TI
     TW = sequence.TW
 
-    E₁ᵀᴱ, E₂ᵀᴱ          = E₁(Ω, TE, T₁),    E₂(Ω, TE, T₂)
-    E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ    = E₁(Ω, TR-TE, T₁), E₂(Ω, TR-TE, T₂)
-    E₁ᵀᴵ, E₂ᵀᴵ          = E₁(Ω, TI, T₁),    E₂(Ω, TI, T₂)
-    E₁ᵂ, E₂ᵂ =  E₁(Ω, TW, T₁),    E₂(Ω, TW, T₂)  # waiting between sequence repetitions
+    E₁ᵀᴱ, E₂ᵀᴱ = E₁(Ω, TE, T₁), E₂(Ω, TE, T₂)
+    E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ = E₁(Ω, TR - TE, T₁), E₂(Ω, TR - TE, T₂)
+    E₁ᵀᴵ, E₂ᵀᴵ = E₁(Ω, TI, T₁), E₂(Ω, TI, T₂)
+    E₁ᵂ, E₂ᵂ = E₁(Ω, TW, T₁), E₂(Ω, TW, T₂)  # waiting between sequence repetitions
 
-    eⁱᴮ⁰⁽ᵀᴱ⁾    = off_resonance_rotation(Ω, TE, p)
-    eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾ = off_resonance_rotation(Ω, TR-TE, p)
-    eⁱᴮ⁰⁽ᵀᵂ⁾    = off_resonance_rotation(Ω, TW, p)    # waiting between sequence repetitions
+    eⁱᴮ⁰⁽ᵀᴱ⁾ = off_resonance_rotation(Ω, TE, p)
+    eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾ = off_resonance_rotation(Ω, TR - TE, p)
+    eⁱᴮ⁰⁽ᵀᵂ⁾ = off_resonance_rotation(Ω, TW, p)    # waiting between sequence repetitions
 
     @inline precess(Ω, E₁, E₂, eⁱᶿ) = begin
         Ω = rotate_decay(Ω, E₁, E₂, eⁱᶿ)
@@ -91,7 +91,7 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
             regrowth!(Ω, E₁ᵀᴵ)
         end
 
-        for (TR,RF) in enumerate(sequence.RF_train)
+        for (TR, RF) in enumerate(sequence.RF_train)
             # mix states
             excite!(Ω, RF, p)
             # T2 decay F states, T1 decay Z states, B0 rotation until TE
@@ -123,7 +123,7 @@ end
 # That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP,
 # here's a constructor that takes care of it in case you forget.
 FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse, wait_spoiling) =
-                        FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling)
+    FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling)
 
 # Add method to getindex to reduce sequence length with convenient syntax (idx is something like 1:nr_of_readouts)
 Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse, seq.wait_spoiling)

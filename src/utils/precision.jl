@@ -15,7 +15,7 @@ or `<:AbstractTrajectory`), it is required that `typeof(x)` be made a
 It may be necessary to add new adapt rules (by adding new methods to adapt_storage)
 if new structs with complicated nested fields are introduced.
 """
-f32(x) = fmap(y -> _change_precision(Float32,y), x)
+f32(x) = fmap(y -> _change_precision(Float32, y), x)
 
 """
     f64(x)
@@ -28,18 +28,18 @@ or `<:AbstractTrajectory`), it is required that `typeof(x)` be made a
 It may be necessary to add new adapt rules (by adding new methods to `adapt_storage`)
 if new structs with complicated nested fields are introduced.
 """
-f64(x) = fmap(y -> _change_precision(Float64,y), x)
+f64(x) = fmap(y -> _change_precision(Float64, y), x)
 
 # default: do nothing
-_change_precision(::Type{T}, x) where T = x
+_change_precision(::Type{T}, x) where {T} = x
 # rule for single real number
-_change_precision(::Type{T}, x::AbstractFloat) where T = T(x)
+_change_precision(::Type{T}, x::AbstractFloat) where {T} = T(x)
 # rule for single complex number
-_change_precision(::Type{T}, x::Complex{<:AbstractFloat}) where T = Complex{T}(x)
+_change_precision(::Type{T}, x::Complex{<:AbstractFloat}) where {T} = Complex{T}(x)
 # rule for real array
-_change_precision(::Type{T}, x::AbstractArray{<:AbstractFloat}) where T = convert(AbstractArray{T}, x)
+_change_precision(::Type{T}, x::AbstractArray{<:AbstractFloat}) where {T} = convert(AbstractArray{T}, x)
 # rule for complex array
-_change_precision(::Type{T}, x::AbstractArray{<:Complex{<:AbstractFloat}}) where T = convert(AbstractArray{Complex{T}}, x)
+_change_precision(::Type{T}, x::AbstractArray{<:Complex{<:AbstractFloat}}) where {T} = convert(AbstractArray{Complex{T}}, x)
 # rule for tuple (not needed it seems)
 # _change_precision(::Type{T}, x::NTuple{N}) where {N,T} = NTuple{N,T}(x)
 # rule for namedtuple (not needed either it seems)

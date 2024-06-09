@@ -19,7 +19,7 @@ makedocs(;
         edit_link="main",
         assets=String[],
     ),
-    pages = [
+    pages=[
         "Home" => "index.md",
         "Overview" => "overview.md",
         "Examples" => ["dictionary.md", "signal.md", "adiabatic.md"],
@@ -28,6 +28,6 @@ makedocs(;
 )
 
 deploydocs(
-    repo = "github.com/oscarvanderheide/BlochSimulators.jl.git",
+    repo="github.com/oscarvanderheide/BlochSimulators.jl.git",
 )
 

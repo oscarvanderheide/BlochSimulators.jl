@@ -35,21 +35,21 @@ output_eltype(sequence::pSSFP3D) = eltype(sequence.RF_train)
 # Sequence implementation
 @inline function simulate_magnetization!(magnetization, sequence::pSSFP3D, m, p::AbstractTissueParameters)
 
-    T₁,T₂ = p.T₁, p.T₂
+    T₁, T₂ = p.T₁, p.T₂
 
-    γΔtRFᵉˣ     = sequence.γΔtRF
-    Δtᵉˣ        = sequence.Δt.ex
-    E₁ᵉˣ, E₂ᵉˣ  = E₁(m, Δtᵉˣ, T₁), E₂(m, Δtᵉˣ, T₂)
+    γΔtRFᵉˣ = sequence.γΔtRF
+    Δtᵉˣ = sequence.Δt.ex
+    E₁ᵉˣ, E₂ᵉˣ = E₁(m, Δtᵉˣ, T₁), E₂(m, Δtᵉˣ, T₂)
 
-    Δtᵖʳ        = sequence.Δt.pr
-    E₁ᵖʳ, E₂ᵖʳ  = E₁(m, Δtᵖʳ, T₁), E₂(m, Δtᵖʳ, T₂)
+    Δtᵖʳ = sequence.Δt.pr
+    E₁ᵖʳ, E₂ᵖʳ = E₁(m, Δtᵖʳ, T₁), E₂(m, Δtᵖʳ, T₂)
 
-    E₁ⁱⁿᵛ, E₂ⁱⁿᵛ  = E₁(m, sequence.Δt.inv, T₁), E₂(m, sequence.Δt.inv, T₂)
+    E₁ⁱⁿᵛ, E₂ⁱⁿᵛ = E₁(m, sequence.Δt.inv, T₁), E₂(m, sequence.Δt.inv, T₂)
 
     𝟘 = zero(T₁)
 
     # Simulate excitation with flip angle θ using hard pulse approximation of the normalized RF-waveform γΔtRF
-    excite = @inline function(m,θ)
+    excite = @inline function (m, θ)
         for ⚡ in (θ * γΔtRFᵉˣ)
             m = rotate(m, ⚡, 𝟘, 𝟘, Δtᵉˣ, p)
             m = decay(m, E₁ᵉˣ, E₂ᵉˣ)
@@ -59,7 +59,7 @@ output_eltype(sequence::pSSFP3D) = eltype(sequence.RF_train)
     end
 
     # Slice select prephaser, B₀ rotation, T₂ decay and T₁ regrowth
-    precess = @inline function(m)
+    precess = @inline function (m)
         m = rotate(m, 𝟘, 𝟘, Δtᵖʳ, p)
         m = decay(m, E₁ᵖʳ, E₂ᵖʳ)
         m = regrowth(m, E₁ᵖʳ)
@@ -76,7 +76,7 @@ output_eltype(sequence::pSSFP3D) = eltype(sequence.RF_train)
     m = regrowth(m, E₁ⁱⁿᵛ)
 
     # apply "alpha over two" pulse
-    θ₀ = -sequence.RF_train[1]/2
+    θ₀ = -sequence.RF_train[1] / 2
     m = excite(m, θ₀)
 
     # slice select re- & prephaser, B₀ rotation, T₂ decay and T₁ regrowth until next RF
@@ -85,7 +85,7 @@ output_eltype(sequence::pSSFP3D) = eltype(sequence.RF_train)
     m = regrowth(m, E₁ᵖʳ)
 
     # simulate pSSFP3D sequence with varying flipangles
-    for (TR,θ) ∈ enumerate(sequence.RF_train)
+    for (TR, θ) ∈ enumerate(sequence.RF_train)
         # simulate RF pulse and slice-selection gradient
         m = excite(m, θ)
         # slice select prephaser, B₀ rotation, T₂ decay and T₁ regrowth until TE

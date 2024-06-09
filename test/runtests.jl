@@ -341,13 +341,13 @@ end
     # Because this voxel has x = y = 0, a gradient trajectory
     # should not influence it and for one voxel there's no
     # volume integral either
-    @test d ≈ vec(s[(ns÷2)+1,:])
+    @test d ≈ vec(s[(ns÷2)+1, :])
 
     # If we now simulate with a voxel with x and y non-zero, then
     # at echo time the magnetization should be the same in abs
     s2 = simulate_signal(CPU1(), sequence, [T₁T₂ρˣρʸ(1.0, 0.1, 1.0, 0.0)], trajectory, coordinates)
 
-    @test abs.(d) ≈ abs.(vec(s2[(ns÷2)+1,:]))
+    @test abs.(d) ≈ abs.(vec(s2[(ns÷2)+1, :]))
 
 end
 

@@ -16,14 +16,14 @@ in voxel `j` obtained through Bloch simulations.
 
 # Returns
 - `signal::AbstractMatrix{<:Complex}`: Simulated MR signal for the `sequence` and `trajectory`.
-The matrix is of size (# samples, # coils). 
+The matrix is of size (# samples, # coils).
 """
 function simulate_signal(
-    resource::AbstractResource, 
-    sequence::BlochSimulator{T}, 
-    parameters::AbstractVector{<:AbstractTissueParameters{N,T}}, 
-    trajectory::AbstractTrajectory{T}, 
-    coordinates::AbstractArray{<:Coordinates{T}}, 
+    resource::AbstractResource,
+    sequence::BlochSimulator{T},
+    parameters::AbstractVector{<:AbstractTissueParameters{N,T}},
+    trajectory::AbstractTrajectory{T},
+    coordinates::AbstractArray{<:Coordinates{T}},
     coil_sensitivities::AbstractMatrix{Complex{T}}) where {N,T}
 
     @assert length(parameters) == size(coil_sensitivities, 1)
@@ -76,24 +76,24 @@ end
 """
     magnetization_to_signal(::CPUProcesses, dmagnetization, dparameters, trajectory, dcoordinates, dcoil_sensitivities)
 
-The "voxels" are assumed to be distributed over the workers. Each worker computes performs a volume integral 
-over the voxels that it owns only (for all time points) using the CPU1() code. The results are then summed up across all workers. 
+The "voxels" are assumed to be distributed over the workers. Each worker computes performs a volume integral
+over the voxels that it owns only (for all time points) using the CPU1() code. The results are then summed up across all workers.
 """
 function magnetization_to_signal(
-    ::CPUProcesses, 
-    dmagnetization::DArray, 
-    dparameters::DArray, 
-    trajectory, 
-    dcoordinates::DArray, 
+    ::CPUProcesses,
+    dmagnetization::DArray,
+    dparameters::DArray,
+    trajectory,
+    dcoordinates::DArray,
     dcoil_sensitivities::DArray)
 
     signal = @distributed (+) for p in workers()
         magnetization_to_signal(
-            CPU1(), 
-            localpart(dmagnetization), 
-            localpart(dparameters), 
-            trajectory, 
-            localpart(dcoordinates), 
+            CPU1(),
+            localpart(dmagnetization),
+            localpart(dparameters),
+            trajectory,
+            localpart(dcoordinates),
             localpart(dcoil_sensitivities)
         )
     end
@@ -104,10 +104,10 @@ end
 """
     _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Compute the signal for a given coil by calculating a volume integral of the transverse magnetization 
+Compute the signal for a given coil by calculating a volume integral of the transverse magnetization
 in each voxel for each time point separately (using the signal_at_time_point!` function).
 """
-function _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities) 
+function _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     error("This method for _signal_per_coil! should never be called. It's only there for the docstring.")
 end
 
@@ -136,12 +136,12 @@ end
 """
     _signal_per_coil!(signal, ::CUDALibs, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Let different threads of an NVIDIA CUDA device calculate the signal at different time points. 
+Let different threads of an NVIDIA CUDA device calculate the signal at different time points.
 """
 function _signal_per_coil!(signal, ::CUDALibs, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-    
+
     nr_blocks = cld(nsamples(trajectory), THREADS_PER_BLOCK)
-    
+
     # define kernel function to be run by each thread on gpu
     magnetization_to_signal_kernel!(signal, magnetization, parameters, trajectory, coordinates, coil_sensitivities) = begin
 
@@ -154,7 +154,7 @@ function _signal_per_coil!(signal, ::CUDALibs, magnetization, parameters, trajec
     end
 
     # launch kernels, threads per block hardcoded for now
-    CUDA.@sync @cuda blocks=nr_blocks threads=THREADS_PER_BLOCK magnetization_to_signal_kernel!(signal, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
+    CUDA.@sync @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK magnetization_to_signal_kernel!(signal, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 end
 
 """
@@ -188,7 +188,7 @@ Better performance can likely be achieved by incorporating more trajectory-speci
         # load coil sensitivity for coil i in this voxel (SVector of length (# coils))
         @inbounds c = coil_sensitivities[voxel]
         # load magnetization in voxel at echo time of the r-th readout
-        @inbounds m = magnetization[readout,voxel]
+        @inbounds m = magnetization[readout, voxel]
         # load the spatial coordinates of the voxel
         @inbounds xyz = coordinates[voxel]
         # compute magnetization at s-th sample of r-th readout
