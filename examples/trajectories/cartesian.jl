@@ -55,9 +55,9 @@ end
 export CartesianTrajectory
 
 """
-    magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
+    magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetization, parameters, trajectory::CartesianTrajectory, coordinates, coil_sensitivities)
 
-Arguments
+# Arguments
 - `magnetization`:          Matrix{Complex} of size (# readouts, # voxels) with phase-encoded
                     magnetization at echo times.
 - `parameters`:     Tissue parameters of all voxels, including spatial coordinates.
@@ -65,12 +65,11 @@ Arguments
 - `coordinates`:    Vector{Coordinates} with spatial coordinates for each voxel.
 - `coil_sensitivities`:     Matrix{Complex} of size (# voxels, # coils) with coil sensitivities.
 
-Output:
+# Returns
 - `signal`: Vector of length (# coils) with each element a Matrix{Complex}
         of size (# readouts, # samples per readout)
 
-Description:
-
+# Extended help 
 As noted in the description of the simulate_signal function (see `src/simulate/signal.jl`),
 we simulate the MR signal at timepoint `t` from coil `i` as:
 signalᵢ[t] = sum(m[t,v] * cᵢ[v] * ρ[v]  for v in 1:(# voxels)),
@@ -145,9 +144,9 @@ function magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetizatio
     signal = similar(magnetization, (ns, nr, nc))
     # Perform main computations
     for j in 1:nc
-        signalⱼ = @view signal[:,:,j]
-        coilⱼ = @view coil_sensitivities[:,j]
-        mul!(signalⱼ, transpose( (Eˢ .* (ρ .* coilⱼ))), transpose(magnetization))
+        signalⱼ = @view signal[:, :, j]
+        coilⱼ = @view coil_sensitivities[:, j]
+        mul!(signalⱼ, transpose((Eˢ .* (ρ .* coilⱼ))), transpose(magnetization))
     end
 
     return signal

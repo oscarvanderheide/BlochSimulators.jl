@@ -14,8 +14,14 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 # Returns
 - `magnetization::AbstractArray`: Array of size (output_size(sequence), length(parameters)) containing the
     magnetization response of the sequence for all combinations of input tissue parameters.
+
+# Note
+If no `resource` is provided, the simulation is performed on the CPU in a multi-threaded fashion by default. If the `parameters` are a CuArray, the simulation is performed on the GPU. If the `parameters` are a DArray, the simulation is performed on the multiple workers.
 """
-function simulate_magnetization(resource::AbstractResource, sequence, parameters)
+function simulate_magnetization(
+    resource::AbstractResource,
+    sequence::BlochSimulator,
+    parameters::AbstractVector{<:AbstractTissueParameters})
 
     # Allocate array to store magnetization for each voxel
     magnetization = _allocate_magnetization_array(resource, sequence, parameters)
@@ -24,6 +30,18 @@ function simulate_magnetization(resource::AbstractResource, sequence, parameters
     simulate_magnetization!(magnetization, resource, sequence, parameters)
 
     return magnetization
+end
+
+function simulate_magnetization(sequence, parameters)
+    simulate_magnetization(CPUThreads(), sequence, parameters)
+end
+
+function simulate_magnetization(sequence, parameters::CuArray)
+    simulate_magnetization(CUDALibs(), gpu(sequence), parameters)
+end
+
+function simulate_magnetization(sequence, parameters::DArray)
+    simulate_magnetization(CPUProcesses(), sequence, parameters)
 end
 
 """
@@ -139,26 +157,5 @@ function _allocate_array_on_resource(::CPUProcesses, _eltype, _size)
     distribution = ones(Int, length(_size) - 1)
     append!(distribution, nworkers())
     dzeros(_eltype, _size, workers(), distribution)
-end
-
-"""
-    function simulate_magnetization(sequence, parameters)
-
-Convenience function to simulate magnetization without specifying the computational resource. The function automatically selects the appropriate resource based on the type of the `parameters` argument.
-
-- If the `parameters` are provided as a CuArray, the `sequence` is made GPU-compatible as well and the simulation is performed on the GPU.
-- If the `parameters` are provided as a DArray, the simulation is performed on the multiple workers.
-- If the `parameters` are provided as a regular array, the simulation is performed on the CPU in a multi-threaded fashion.
-"""
-function simulate_magnetization(sequence, parameters)
-    simulate_magnetization(CPUThreads(), sequence, parameters)
-end
-
-function simulate_magnetization(sequence, parameters::CuArray)
-    simulate_magnetization(CUDALibs(), gpu(sequence), parameters)
-end
-
-function simulate_magnetization(sequence, parameters::DArray)
-    simulate_magnetization(CPUProcesses(), sequence, parameters)
 end
 

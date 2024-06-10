@@ -2,9 +2,7 @@
     simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
 
 Simulate the MR signal at timepoint `t` from coil `i` as: `sᵢ(t) = ∑ⱼ cᵢⱼρⱼmⱼ(t)`,
-where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`,
-`ρⱼ` is the proton density of voxel `j` and `mⱼ(t)` the (normalized) transverse magnetization
-in voxel `j` obtained through Bloch simulations.
+where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρⱼ` is the proton density of voxel `j` and `mⱼ(t)` the (normalized) transverse magnetization in voxel `j` obtained through Bloch simulations.
 
 # Arguments
 - `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
@@ -15,8 +13,7 @@ in voxel `j` obtained through Bloch simulations.
 - `coil_sensitivities::AbstractMatrix`: Sensitivity of coil `j` in voxel `v` is given by `coil_sensitivities[v,j]`
 
 # Returns
-- `signal::AbstractMatrix{<:Complex}`: Simulated MR signal for the `sequence` and `trajectory`.
-The matrix is of size (# samples, # coils).
+- `signal::AbstractArray{<:Complex}`: Simulated MR signal for the `sequence` and `trajectory`. The array is of size (# samples per readout, # readouts, # coils).
 """
 function simulate_signal(
     resource::AbstractResource,
@@ -46,14 +43,15 @@ end
 """
     magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Allocates memory for the signal and computes the signal for each coil separately using the `_signal_per_coil!` function.
-That function is implemented for different computational resources and will be called based on the `resource` argument.
-The default implementations loop over all time points and compute the volume integral of the transverse magnetization
-in each voxel for each time point separately.
+Allocates memory for the signal and computes the signal for each coil separately using the `_signal_per_coil!` function. 
+    
+# Implementation details
+The `_signal_per_coil!` function has different implementations depending on the computational resources (i.e. the type of `resource`). The default implementations loop over all time points and compute the volume integral of the transverse magnetization in each voxel for each time point separately. This loop order is not necessarily optimal (and performance may be) across all trajectories and computational resources. If a better implementation is available, add new methods to this function for those specific combinations of resources and trajectories.
 
-This loop order is not necessarily optimal (and performance may be) across all trajectories and
-computational resources. If a better implementation is available, add new methods to this
-function for those specific combinations of resources and trajectories.
+The "voxels" are assumed to be distributed over the workers. Each worker computes performs a volume integral over the voxels that it owns only (for all time points) using the CPU1() code. The results are then summed up across all workers.
+
+# Note
+When using multiple CPU's, the "voxels" are distributed over the workers. Each worker computes the signal for its own voxels in parallel and the results are summed up across all workers.
 """
 function magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
@@ -73,12 +71,6 @@ function magnetization_to_signal(resource, magnetization, parameters, trajectory
     return signal
 end
 
-"""
-    magnetization_to_signal(::CPUProcesses, dmagnetization, dparameters, trajectory, dcoordinates, dcoil_sensitivities)
-
-The "voxels" are assumed to be distributed over the workers. Each worker computes performs a volume integral
-over the voxels that it owns only (for all time points) using the CPU1() code. The results are then summed up across all workers.
-"""
 function magnetization_to_signal(
     ::CPUProcesses,
     dmagnetization::DArray,
@@ -104,40 +96,24 @@ end
 """
     _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Compute the signal for a given coil by calculating a volume integral of the transverse magnetization
-in each voxel for each time point separately (using the signal_at_time_point!` function).
+Compute the signal for a given coil by calculating a volume integral of the transverse magnetization in each voxel for each time point separately (using the `signal_at_time_point!` function). Each time point is computed in parallel for multi-threaded CPU computation and on the GPU for CUDA computation.
 """
 function _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     error("This method for _signal_per_coil! should never be called. It's only there for the docstring.")
 end
 
-"""
-    _signal_per_coil!(signal, ::CPU1, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-
-Loop over the time points to calculate the signal at that time point in a serial fashion on a single CPU.
-"""
 function _signal_per_coil!(signal, ::CPU1, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     for time_point in 1:nsamples(trajectory)
         signal_at_time_point!(signal, time_point, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     end
 end
 
-"""
-    _signal_per_coil!(signal, ::CPUThreads, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-
-Loop over the time points to calculate the signal at that time point in a multi-threaded fashion.
-"""
 function _signal_per_coil!(signal, ::CPUThreads, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     Threads.@threads for time_point in 1:nsamples(trajectory)
         signal_at_time_point!(signal, time_point, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     end
 end
 
-"""
-    _signal_per_coil!(signal, ::CUDALibs, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
-
-Let different threads of an NVIDIA CUDA device calculate the signal at different time points.
-"""
 function _signal_per_coil!(signal, ::CUDALibs, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
     nr_blocks = cld(nsamples(trajectory), THREADS_PER_BLOCK)
@@ -221,7 +197,9 @@ end
 
 ### Convenience functions
 
-# When coil sensitivities are not provided, use a single coil with sensitivity = 1 everywhere
+"""
+When coil sensitivities are not provided, use a single coil with sensitivity = 1 everywhere
+"""
 function simulate_signal(resource, sequence::BlochSimulator, parameters::AbstractArray{<:AbstractTissueParameters{N,T}}, trajectory, coordinates) where {N,T}
 
     # use one coil with sensitivity 1 everywhere
