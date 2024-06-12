@@ -90,5 +90,5 @@ For example, given some `sequence`, `gpu(f32(sequence))` will recursively conver
 - Add diffusion operators to both the isochromat and extended phase graph models.
 - Add magnetization transfer model.
 - Add spiral and EPI trajectories.
-- Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueParameters}`.
-- Perhaps separate the spatial coordinates from the tissue parameters.
+- ~~Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueParameters}`.~~
+- ~~Perhaps separate the spatial coordinates from the tissue parameters.~~
