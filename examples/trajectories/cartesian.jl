@@ -116,7 +116,13 @@ and works on both CPU and GPU. The matrix-matrix multiplications
 are - I think - already multi-threaded so a separate multi-threaded
 implementation is not needed.
 """
-function magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetization, parameters, trajectory::CartesianTrajectory, coordinates, coil_sensitivities)
+function magnetization_to_signal(
+    ::Union{CPU1,CPUThreads,CUDALibs},
+    magnetization,
+    parameters::StructArray{<:AbstractTissueParameters},
+    trajectory::CartesianTrajectory,
+    coordinates::StructArray{<:Coordinates},
+    coil_sensitivities)
 
     # Sanity checks
     @assert size(magnetization) == (trajectory.nreadouts, length(parameters))
@@ -124,9 +130,12 @@ function magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetizatio
 
     # Load constants
     # Maybe should start using StructArrays to get rid of the map stuff
-    T₂ = map(p -> p.T₂, parameters) |> vec
-    ρ = map(p -> complex(p.ρˣ, p.ρʸ), parameters) |> vec
-    x = map(r -> r.x, coordinates) |> vec
+    # T₂ = map(p -> p.T₂, parameters) |> vec
+    # ρ = map(p -> complex(p.ρˣ, p.ρʸ), parameters) |> vec
+    # x = map(r -> r.x, coordinates) |> vec
+    T₂ = parameters.T₂
+    ρ = complex.(parameters.ρˣ, parameters.ρʸ)
+    x = coordinates.x
     Δt = trajectory.Δt
     Δkₓ = trajectory.Δk_adc
     ns = trajectory.nsamplesperreadout
@@ -158,8 +167,9 @@ end
 @inline nsamplesperreadout(t::SpokesTrajectory) = t.nsamplesperreadout
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
-function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates)
-    y = map(r -> r.y, coordinates) |> vec
+function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates::StructArray{<:Coordinates})
+    # y = map(r -> r.y, coordinates) |> vec
+    y = coordinates.y
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
     return nothing
@@ -177,7 +187,7 @@ function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory,
     return nothing
 end
 
-@inline function to_sample_point(mₑ, trajectory::CartesianTrajectory, readout_idx, sample_idx, coordinates, p)
+@inline function to_sample_point(mₑ::Complex, trajectory::CartesianTrajectory, readout_idx, sample_idx, r::Coordinates, p::AbstractTissueParameters)
 
     # Note that m has already been phase-encoded
 

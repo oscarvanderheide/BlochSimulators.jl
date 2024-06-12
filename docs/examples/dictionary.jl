@@ -86,7 +86,3 @@ BlochSimulators.CUDA.device();
 cu_parameters = rand(T₁T₂, 500_000) |> f32 |> gpu
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
-
-
-
-

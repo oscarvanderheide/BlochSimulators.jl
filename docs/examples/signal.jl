@@ -20,23 +20,28 @@ import ImagePhantoms
 # but non-constant proton density and B₀
 N = 256
 ρ = complex.(ImagePhantoms.shepp_logan(N, ImagePhantoms.SheppLoganEmis())');
+ρˣ = real.(ρ)
+ρʸ = imag.(ρ)
 T₁ = fill(0.85, N, N);
 T₂ = fill(0.05, N, N);
 B₀ = repeat(1:N, 1, N);
 
 # We also set the spatial coordinates for the phantom
 FOVˣ, FOVʸ = 25.6, 25.6;
-X = [x for x ∈ LinRange(-FOVˣ / 2, FOVˣ / 2, N), y ∈ 1:N];
-Y = [y for x ∈ 1:N, y ∈ LinRange(-FOVʸ / 2, FOVʸ / 2, N)];
+X = LinRange(-FOVˣ / 2, FOVˣ / 2, N) # [x for x ∈ LinRange(-FOVˣ / 2, FOVˣ / 2, N), y ∈ 1:N];
+Y = LinRange(-FOVʸ / 2, FOVʸ / 2, N) # [y for x ∈ 1:N, y ∈ LinRange(-FOVʸ / 2, FOVʸ / 2, N)];
+Z = LinRange(0, 0, 1)
 
-# Finally we assemble the phantom as an array of `T₁T₂B₀ρˣρʸxy` values
-parameters = map(T₁T₂B₀ρˣρʸxy, T₁, T₂, B₀, real.(ρ), imag.(ρ), X, Y);
+coordinates = @coordinates X Y Z
+
+# Finally we assemble the phantom as a `StructArray` of `T₁T₂B₀ρˣρʸ` values
+parameters = @parameters T₁ T₂ B₀ ρˣ ρʸ;
 
 # Next, we assemble a balanced sequence with constant flip angle of 60 degrees,
 # a TR of 10 ms and 0-π phase cycling. See `src/sequences/pssfp.jl` for the
 # sequence description and the fields for which values must be provided
 
-nTR = 5N
+nTR = N
 RF_train = complex.(fill(90.0, nTR)) # constant flip angle train
 RF_train[2:2:end] .*= -1 # 0-π phase cycling
 nRF = 25 # nr of RF discretization points
@@ -77,9 +82,10 @@ coil_sensitivities = [vec(coil₁);; vec(coil₂)]
 resource = CUDALibs()
 
 sequence = gpu(f32(sequence))
-parameters = gpu(f32(parameters))
+parameters = gpu(f32(parameters)) |> vec
 trajectory = gpu(f32(trajectory))
 coil_sensitivities = gpu(f32(coil_sensitivities))
+coordinates = gpu(f32(coordinates)) |> vec
 
 using BlochSimulators.CUDA
 
@@ -89,13 +95,13 @@ resource = CUDALibs()
 CUDA.@time magnetization = simulate_magnetization(resource, sequence, parameters);
 
 # Then we apply phase encoding (typically only for Cartesian trajectories)
-CUDA.@time phase_encoding!(magnetization, trajectory, parameters)
+CUDA.@time phase_encoding!(magnetization, trajectory, coordinates)
 
 # Finally, we compute signal from (phase-encoded) magnetization at echo times
-CUDA.@time signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
+CUDA.@time signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities);
 
 # Alternatively, we can use the simulate_signal function which combines the above three steps into one
-CUDA.@time signal = simulate_signal(resource, magnetization, parameters, trajectory, coil_sensitivities);
+CUDA.@time signal = simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities);
 
 # Send the signal from GPU to CPU
 signal = collect(signal)

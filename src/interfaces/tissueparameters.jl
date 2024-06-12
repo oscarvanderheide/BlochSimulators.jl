@@ -1,9 +1,9 @@
 """
     AbstractTissueParameters{N,T} <: FieldVector{N,T}
 
-Abstract type for structs that hold different combinations of tissue parameters.
-# Possible fields
+Abstract type for custom structs that hold tissue parameters used for a simulation within one voxel. For simulations, `StructArray{<:AbstractTissueParameters}`s are used that can be assembled with the `@parameters` macro.
 
+# Possible fields:
 - `T₁::T`: T₁ relaxation parameters of a voxel
 - `T₂::T`: T₂ relaxation parameters of a voxel
 - `B₁::T`: Scaling factor for effective B₁ excitation field within a voxel
@@ -11,13 +11,13 @@ Abstract type for structs that hold different combinations of tissue parameters.
 - `ρˣ::T`: Real part of proton density within a voxel
 - `ρʸ::T`: Imaginary part of proton density within a voxel
 
+# Implementation details:
 The structs are subtypes of FieldVector, which is a StaticVector with named fields
 (see the documentation of StaticArrays.jl). There are three reasons for letting the structs
 be subtypes of FieldVector:
 1) FieldVectors/StaticVectors have sizes that are known at compile time. This is beneficial for performance reasons
 2) The named fields improve readability of the code (e.g. `p.B₁` vs `p[3]`)
-3) Linear algebra operations can be performed on instances of the structs. This allows, for example,
-   subtraction (without having to manually define methods) and that is useful for comparing parameter maps.
+3) Linear algebra operations can be performed on instances of the structs. This allows, for example, subtraction (without having to manually define methods) and that is useful for comparing parameter maps.
 """
 abstract type AbstractTissueParameters{N,T} <: FieldVector{N,T} end
 
@@ -59,8 +59,7 @@ struct T₁T₂B₁B₀{T} <: AbstractTissueParameters{4,T}
 end
 
 # For each subtype of AbstractTissueParameters created above, we use meta-programming to create
-# additional types that also hold proton density (ρˣ and ρʸ) and/or spatial coordinates
-# (x,y for 2D simulations or x,y,z for 3D simulations).
+# additional types that also hold proton density (ρˣ and ρʸ)
 #
 # For example, given T₁T₂ <: AbstractTissueParameters, we automatically define:
 #
@@ -137,3 +136,41 @@ function get_nonlinear_part(p::Type{<:AbstractTissueParameters})
         error("Either both :ρˣ and :ρʸ should be included, or neither should be")
     end
 end
+
+"""
+    macro parameters(args...)
+
+Create a `StructArray{<:AbstractTissueParameters}` with the actual struct type being determined by the arguments passed to the macro.
+
+# Examples
+```julia
+# Create a StructArray{T₁T₂} with T₁ and T₂ values
+T₁, T₂ = rand(100), 0.1*rand(100)
+parameters = @parameters T₁ T₂
+
+# Create a StructArray{T₁T₂B₁} with T₁, T₂ and B₁ values
+T₁, T₂, B₁ = rand(100), 0.1*rand(100), ones(100)
+parameters = @parameters T₁ T₂ B₁
+
+# Create a StructArray{T₁T₂B₀} with T₁, T₂ and B₀ values
+# This time use the aliases that don't use unicode characters
+T1, T2, B0 = rand(100), 0.1*rand(100), ones(100)
+parameters = @parameters T1 T2 B0
+```
+"""
+macro parameters(args...)
+    type_name = Symbol(join(string.(args)))
+    first_arg_type = :(eltype($(esc(args[1]))))
+    return :(StructArray{$(type_name){$(first_arg_type)}}(($(esc.(args)...),)))
+end
+
+# Define aliases for the tissue parameter types that do not use unicode characters such that, for example, `@parameters T1 T2 B0` is equivalent to `@parameters T₁ T₂ B₀`. This makes it easier for users of the package to generate tissue parameter arrays without having to type unicode characters.
+const T1T2 = T₁T₂
+const T1T2B1 = T₁T₂B₁
+const T1T2B0 = T₁T₂B₀
+const T1T2B1B0 = T₁T₂B₁B₀
+
+const T1T2PDxPDy = T₁T₂ρˣρʸ
+const T1T2B1PDxPDy = T₁T₂B₁ρˣρʸ
+const T1T2B0PDxPDy = T₁T₂B₀ρˣρʸ
+const T1T2B1B0PDxPDy = T₁T₂B₁B₀ρˣρʸ

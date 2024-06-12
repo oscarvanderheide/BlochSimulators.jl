@@ -10,6 +10,7 @@ using InteractiveUtils # needed for subtypes function
 using LinearAlgebra
 using OffsetArrays
 using StaticArrays
+using StructArrays
 using Unitful
 using Unitless
 
@@ -24,7 +25,9 @@ const THREADS_PER_BLOCK = 32
 # in tissueparameters.jl
 include("interfaces/tissueparameters.jl")
 
-export AbstractTissueParameters, hasB₁, hasB₀
+export @parameters, AbstractTissueParameters, hasB₁, hasB₀
+export T1T2, T1T2B1, T1T2B0, T1T2B1B0
+export T1T2PDxPDy, T1T2B1PDxPDy, T1T2B0PDxPDy, T1T2B1B0PDxPDy
 
 # Informal interface for sequence implementations. By convention,
 # a sequence::BlochSimulator is used to simulate magnetization at
@@ -69,7 +72,7 @@ include("interfaces/trajectories.jl")
 # with x,y, and z fields (with alias `xyz`).
 include("interfaces/coordinates.jl")
 
-export Coordinates
+export Coordinates, make_coordinates, @coordinates
 
 # Currently included example trajectories:
 include("../examples/trajectories/cartesian.jl")

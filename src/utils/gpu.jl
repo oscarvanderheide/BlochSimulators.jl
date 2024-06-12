@@ -24,4 +24,22 @@ _isbitsarray(::AbstractArray{T}) where {T} = isbitstype(T)
 _isbitsarray(x) = false
 _isleaf(x) = _isbitsarray(x) || isleaf(x)
 
+# Convert underlying arrays of a `StructArray` to `CuArray`s while keeping the `StructArray` wrapper intact
+gpu(x::StructArray) = StructArray{eltype(x)}(gpu(StructArrays.components(x)))
+
 export gpu
+
+"""
+    _all_arrays_are_cuarrays(x)
+
+Returns `true` if all `AbstractArray` fields in `x` are `CuArray`s and `false` otherwise. Will also `return` if `x` does not have any `AbstractArray` fields.
+"""
+function _all_arrays_are_cuarrays(x)
+    for name in propertynames(x)
+        property = getproperty(x, name)
+        if (property isa AbstractArray) && !(property isa CuArray)
+            return false
+        end
+    end
+    return true
+end
