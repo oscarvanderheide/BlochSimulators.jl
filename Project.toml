@@ -19,7 +19,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 Unitless = "c904d999-9673-4878-a3dd-e3ef1851788a"
 
 [compat]
-Adapt = "3.6"
+Adapt = "3 - 4"
 ComputationalResources = "0.3"
 CUDA = "3 - 5"
 Distributed = "1"
