@@ -26,6 +26,7 @@ T₂ = 0.025:0.05:1.0; # T₂ range
 
 parameters = map(T₁T₂, Iterators.product(T₁, T₂)); # produce all parameter pairs
 parameters = filter(p -> (p.T₁ > p.T₂), parameters); # remove pairs with T₂ ≤ T₁
+parameters = StructVector(parameters)
 
 println("Length parameters: $(length(parameters))")
 
@@ -83,6 +84,8 @@ BlochSimulators.CUDA.device();
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 
 # Increase the number of parameters:
-cu_parameters = rand(T₁T₂, 500_000) |> f32 |> gpu
+T₁ = rand(500_000)
+T₂ = 0.1 * T₂
+cu_parameters = (@parameters T₁ T₂) |> f32 |> gpu
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
