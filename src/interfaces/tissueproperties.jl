@@ -174,3 +174,6 @@ const T1T2PDxPDy = T₁T₂ρˣρʸ
 const T1T2B1PDxPDy = T₁T₂B₁ρˣρʸ
 const T1T2B0PDxPDy = T₁T₂B₀ρˣρʸ
 const T1T2B1B0PDxPDy = T₁T₂B₁B₀ρˣρʸ
+
+# To perform simulations for multiple voxels, we store the tissue properties in a `StructArray` which we refer to as the `SimulationParameters`.
+const SimulationParameters = StructArray{<:AbstractTissueProperties}

@@ -21,8 +21,7 @@ import Functors: @functor, functor, fmap, isleaf
 # Supported combinations of tissue properties are defined in tissueparameters.jl
 include("interfaces/tissueproperties.jl")
 
-# To perform simulations for multiple voxels, we store the tissue properties in a `StructArray` which we refer to as the `SimulationParameters`.
-const SimulationsParameters = StructArray{<:AbstractTissueProperties}
+
 
 export @parameters, AbstractTissueProperties, hasB₁, hasB₀
 export T1T2, T1T2B1, T1T2B0, T1T2B1B0
@@ -47,18 +46,18 @@ export Isochromat, EPGStates
 # Isochromat simulator that is generic in the sense that it accepts
 # arrays of RF and gradient waveforms similar to the Bloch simulator from
 # Brian Hargreaves (http://mrsrl.stanford.edu/~brian/blochsim/)
-include("../examples/sequences/generic2d.jl") # with summation over slice direction
-include("../examples/sequences/generic3d.jl")
+include("../sequences/generic2d.jl") # with summation over slice direction
+include("../sequences/generic3d.jl")
 
 # An isochromat-based pSSFP sequence with variable flip angle train
-include("../examples/sequences/pssfp2d.jl")
-include("../examples/sequences/pssfp3d.jl")
+include("../sequences/pssfp2d.jl")
+include("../sequences/pssfp3d.jl")
 
 # An EPG-based gradient-spoiled (FISP) sequence with variable flip angle train
-include("../examples/sequences/fisp2d.jl")
-include("../examples/sequences/fisp3d.jl")
+include("../sequences/fisp2d.jl")
+include("../sequences/fisp3d.jl")
 
-include("../examples/sequences/adiabatic.jl")
+include("../sequences/adiabatic.jl")
 
 # Informal interface for trajectory implementations. By convention,
 # a `sequence::BlochSimulator` is used to simulate magnetization at echo times
@@ -74,8 +73,8 @@ include("interfaces/coordinates.jl")
 export Coordinates, make_coordinates, @coordinates
 
 # Currently included example trajectories:
-include("../examples/trajectories/cartesian.jl")
-include("../examples/trajectories/radial.jl")
+include("../trajectories/cartesian.jl")
+include("../trajectories/radial.jl")
 
 # Utility functions (gpu, f32, f64) to send structs to gpu
 # and change their precision
