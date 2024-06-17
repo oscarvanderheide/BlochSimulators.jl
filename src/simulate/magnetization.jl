@@ -1,14 +1,14 @@
 """
     simulate_magnetization(resource, sequence, parameters)
 
-Simulate the magnetization response (typically the transverse magnetization at echo times without any spatial encoding gradients applied) for all combinations of tissue parameters contained in `parameters`.
+Simulate the magnetization response (typically the transverse magnetization at echo times without any spatial encoding gradients applied) for all combinations of tissue properties contained in `parameters`.
 
 This function can also be used to generate dictionaries for MR Fingerprinting purposes.
 
 # Arguments
 - `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
-- `parameters::StructArray{<:AbstractTissueParameters}`: Array with different combinations of tissue parameters for each voxel.
+- `parameters::StructArray{<:AbstractTissueProperties}`: Array with different combinations of tissue properties for each voxel.
 
 # Note
 - If `resource == CUDALibs()`, the sequence and parameters must have been moved to the GPU using `gpu(sequence)` and `gpu(parameters)` prior to calling this function.
@@ -16,7 +16,7 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 
 # Returns
 - `magnetization::AbstractArray`: Array of size (output_size(sequence), length(parameters)) containing the 
-    magnetization response of the sequence for all combinations of input tissue parameters.
+    magnetization response of the sequence for all combinations of input tissue properties.
 
 # Note
 If no `resource` is provided, the simulation is performed on the CPU in a multi-threaded fashion by default. If the `parameters` are a CuArray, the simulation is performed on the GPU. If the `parameters` are a DArray, the simulation is performed on the multiple workers.
@@ -24,7 +24,7 @@ If no `resource` is provided, the simulation is performed on the CPU in a multi-
 function simulate_magnetization(
     resource::AbstractResource,
     sequence::BlochSimulator,
-    parameters::AbstractVector{<:AbstractTissueParameters})
+    parameters::AbstractVector{<:AbstractTissueProperties})
 
     # Allocate array to store magnetization for each voxel
     magnetization = _allocate_magnetization_array(resource, sequence, parameters)
@@ -73,7 +73,7 @@ end
 """
     simulate_magnetization!(magnetization, resource, sequence, parameters)
 
-Simulate the magnetization response for all combinations of tissue parameters contained in `parameters` and stores the results in the pre-allocated `magnetization` array. The actual implementation depends on the computational resource specified in `resource`.
+Simulate the magnetization response for all combinations of tissue properties contained in `parameters` and stores the results in the pre-allocated `magnetization` array. The actual implementation depends on the computational resource specified in `resource`.
 
 This function is called by `simulate_magnetization` and is not intended considered part of te public API.
 """

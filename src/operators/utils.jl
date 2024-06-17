@@ -6,7 +6,7 @@
     return Isochromat{T}(u, v, w)
 end
 
-@inline function off_resonance_rotation(state::S, Δt::T, p::AbstractTissueParameters) where {S<:Union{Isochromat,EPGStates},T}
+@inline function off_resonance_rotation(state::S, Δt::T, p::AbstractTissueProperties) where {S<:Union{Isochromat,EPGStates},T}
     if hasB₀(p)
         θ = π * Δt * p.B₀ * 2
         return exp(im * θ)

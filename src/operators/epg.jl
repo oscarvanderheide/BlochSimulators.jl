@@ -91,12 +91,12 @@ end
 # RF excitation
 
 """
-    excite!(Ω::EPGStates, RF::Complex, p::AbstractTissueParameters)
+    excite!(Ω::EPGStates, RF::Complex, p::AbstractTissueProperties)
 
 Mixing of states due to RF pulse. Magnitude of RF is the flip angle in degrees.
 Phase of RF is the phase of the pulse. If RF is real, the computations simplify a little bit.
 """
-@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where {T<:Union{Complex,Quantity{<:Complex}}}
+@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueProperties) where {T<:Union{Complex,Quantity{<:Complex}}}
 
     # angle of RF pulse, convert from degrees to radians
     α = deg2rad(abs(RF))
@@ -133,11 +133,11 @@ Phase of RF is the phase of the pulse. If RF is real, the computations simplify 
     return nothing
 end
 """
-    excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where T<:Union{Real, Quantity{<:Real}}
+    excite!(Ω::EPGStates, RF::T, p::AbstractTissueProperties) where T<:Union{Real, Quantity{<:Real}}
 
 If RF is real, the calculations simplify (and probably Ω is real too, reducing memory (access) requirements).
 """
-@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueParameters) where {T<:Union{Real,Quantity{<:Real}}}
+@inline function excite!(Ω::EPGStates, RF::T, p::AbstractTissueProperties) where {T<:Union{Real,Quantity{<:Real}}}
 
     # angle of RF pulse, convert from degrees to radians
     α = deg2rad(RF)
@@ -236,11 +236,11 @@ end
 # Invert
 
 """
-    invert!(Ω::EPGStates, p::AbstractTissueParameters)
+    invert!(Ω::EPGStates, p::AbstractTissueProperties)
 
 Invert `Z`-component of states of all orders. *Assumes fully spoiled transverse magnetization*.
 """
-@inline function invert!(Ω::EPGStates, p::AbstractTissueParameters)
+@inline function invert!(Ω::EPGStates, p::AbstractTissueProperties)
     # inversion angle
     θ = π
     hasB₁(p) && (θ *= p.B₁)

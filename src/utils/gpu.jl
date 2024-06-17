@@ -15,7 +15,7 @@ gpu(x) = fmap(_gpu, x; exclude=_isleaf)
 
 _gpu(x) = x
 _gpu(x::AbstractArray) = CUDA.CuArray(x) # no automatic conversion to Float32
-_gpu(x::AbstractTissueParameters) = x
+_gpu(x::AbstractTissueProperties) = x
 _gpu(x::StaticArray) = x
 
 # make custom _isleaf function to include isbitsarrays

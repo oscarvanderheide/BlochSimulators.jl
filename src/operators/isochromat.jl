@@ -52,11 +52,11 @@ end
 # Rotate
 
 """
-    rotate(m::Isochromat{T}, γΔtRF::Complex, γΔtGR::Tuple, (x,y,z), Δt, p::AbstractTissueParameters, Δω = zero(T)) where T
+    rotate(m::Isochromat{T}, γΔtRF::Complex, γΔtGR::Tuple, (x,y,z), Δt, p::AbstractTissueProperties, Δω = zero(T)) where T
 
 RF, gradient and/or ΔB₀ induced rotation of Isochromat computed using Rodrigues rotation formula (https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula).
 """
-@inline function rotate(m::Isochromat{T}, γΔtRF, γΔtGR, r, Δt, p::AbstractTissueParameters, ΔtΔω=zero(T)) where {T}
+@inline function rotate(m::Isochromat{T}, γΔtRF, γΔtGR, r, Δt, p::AbstractTissueProperties, ΔtΔω=zero(T)) where {T}
 
     # Determine rotation vector a
     aˣ = real(γΔtRF)
@@ -84,12 +84,12 @@ RF, gradient and/or ΔB₀ induced rotation of Isochromat computed using Rodrigu
 end
 
 """
-    rotate(m::Isochromat, γΔtGRz, z, Δt, p::AbstractTissueParameters)
+    rotate(m::Isochromat, γΔtGRz, z, Δt, p::AbstractTissueProperties)
 
 Rotation of Isochromat without RF (so around z-axis only) due to gradients and B0
 (i.e. refocussing slice select gradient).
 """
-@inline function rotate(m::Isochromat, γΔtGR, r, Δt, p::AbstractTissueParameters)
+@inline function rotate(m::Isochromat, γΔtGR, r, Δt, p::AbstractTissueProperties)
     # Determine rotation angle θ
     θ = -γΔtGR ⋅ r
     hasB₀(p) && (θ -= Δt * π * p.B₀ * 2)
@@ -123,11 +123,11 @@ end
 # Invert
 
 """
-    invert(m::Isochromat{T}, p::AbstractTissueParameters) where T
+    invert(m::Isochromat{T}, p::AbstractTissueProperties) where T
 
 Invert z-component of `Isochromat` (assuming spoiled transverse magnetization so xy-component zero).
 """
-@inline function invert(m::Isochromat{T}, p::AbstractTissueParameters) where {T}
+@inline function invert(m::Isochromat{T}, p::AbstractTissueProperties) where {T}
     # Determine rotation angle θ
     θ = π
     hasB₁(p) && (θ *= p.B₁)
@@ -135,7 +135,7 @@ Invert z-component of `Isochromat` (assuming spoiled transverse magnetization so
 end
 
 """
-    invert(m::Isochromat{T}, p::AbstractTissueParameters) where T
+    invert(m::Isochromat{T}, p::AbstractTissueProperties) where T
 
 Invert `Isochromat` with B₁ insenstive (i.e. adiabatic) inversion pulse
 """

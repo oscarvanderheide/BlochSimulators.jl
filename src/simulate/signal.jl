@@ -7,7 +7,7 @@ where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρ
 # Arguments
 - `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
-- `parameters::StructVector{<:AbstractTissueParameters}`: Vector with tissue parameters for each voxel
+- `parameters::StructVector{<:AbstractTissueProperties}`: Vector with tissue properties for each voxel
 - `trajectory::AbstractTrajectory`: Custom trajectory struct
 - `coordinates::StructVector{<:Coordinates}`: Vector with spatial coordinates for each voxel
 - `coil_sensitivities::AbstractMatrix`: Sensitivity of coil `j` in voxel `v` is given by `coil_sensitivities[v,j]`
@@ -18,7 +18,7 @@ where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρ
 function simulate_signal(
     resource::AbstractResource,
     sequence::BlochSimulator{T},
-    parameters::StructVector{<:AbstractTissueParameters{N,T}},
+    parameters::StructVector{<:AbstractTissueProperties{N,T}},
     trajectory::AbstractTrajectory{T},
     coordinates::StructVector{<:Coordinates{T}},
     coil_sensitivities::AbstractMatrix{Complex{T}}) where {N,T}
@@ -151,7 +151,7 @@ Better performance can likely be achieved by incorporating more trajectory-speci
     # compute readout and sample indices for time point t
     readout, sample = _get_readout_and_sample_idx(trajectory, time_point)
 
-    # each element of parameters contains tissue parameters for a single voxel
+    # each element of parameters contains tissue properties for a single voxel
     num_voxels = length(parameters)
 
     # accumulator for signal at time index t
@@ -200,7 +200,7 @@ end
 """
 When coil sensitivities are not provided, use a single coil with sensitivity = 1 everywhere
 """
-function simulate_signal(resource, sequence::BlochSimulator, parameters::AbstractArray{<:AbstractTissueParameters{N,T}}, trajectory, coordinates) where {N,T}
+function simulate_signal(resource, sequence::BlochSimulator, parameters::AbstractArray{<:AbstractTissueProperties{N,T}}, trajectory, coordinates) where {N,T}
 
     # use one coil with sensitivity 1 everywhere
     coil_sensitivities = ones(Complex{T}, length(parameters), 1)

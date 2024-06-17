@@ -45,7 +45,7 @@ output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 Ω_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 
 # Sequence implementation
-@inline function simulate_magnetization!(magnetization, sequence::FISP2D, Ω, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(magnetization, sequence::FISP2D, Ω, p::AbstractTissueProperties)
 
     T₁, T₂ = p.T₁, p.T₂
     TR, TE, TI = sequence.TR, sequence.TE, sequence.TI

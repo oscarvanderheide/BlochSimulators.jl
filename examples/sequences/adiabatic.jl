@@ -23,7 +23,7 @@ output_eltype(sequence::AdiabaticInversion{T,V}) where {T,V} = Isochromat{T}
 @adapt_structure AdiabaticInversion
 
 ## Sequence implementation
-function simulate_magnetization!(output, sequence::AdiabaticInversion, m, p::AbstractTissueParameters)
+function simulate_magnetization!(output, sequence::AdiabaticInversion, m, p::AbstractTissueProperties)
 
     T₁, T₂ = p.T₁, p.T₂
     E₁, E₂ = BlochSimulators.E₁(m, sequence.Δt, T₁), BlochSimulators.E₂(m, sequence.Δt, T₂)

@@ -87,14 +87,14 @@ end
     output_size(::BlochSimulator)
 
 For each `<:BlochSimulator`, a method should be added to this function that
-specifies the output size of the simulation for a *single* `::AbstractTissueParameters`.
+specifies the output size of the simulation for a *single* `::AbstractTissueProperties`.
 """
 function output_size(::BlochSimulator)
     @warn "Must implement output_size"
 end
 
 """
-    simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters) end
+    simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueProperties) end
 
 For each `<:BlochSimulator`, a method should be added to this function that
 implements the actual pulse sequence using information contained in the sequence struct
@@ -108,11 +108,11 @@ non-allocating.
 - `sequence`: Sequence struct containing fields that are used to implement the actual pulse
     sequence.
 - `state`: Either an `Isochromat` or `EPGStates`, depending on which model is used.
-- `p`: Custom struct (`<:AbstractTissueParameters`) containing input parameters
+- `p`: Custom struct (`<:AbstractTissueProperties`) containing input parameters
     to the simulation (e.g. `T₁T₂`)
 
 """
-function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters)
+function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueProperties)
     @warn "Must implement simulate_magnetization!"
 end
 

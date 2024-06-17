@@ -20,12 +20,12 @@ import Functors: @functor, functor, fmap, isleaf
 # hard-coded nr of threads per block on GPU
 const THREADS_PER_BLOCK = 32
 
-# To perform simulations we need tissue parameters as inputs.
-# Supported combinations of tissue parameters are defined
+# To perform simulations we need tissue properties as inputs.
+# Supported combinations of tissue properties are defined
 # in tissueparameters.jl
 include("interfaces/tissueparameters.jl")
 
-export @parameters, AbstractTissueParameters, hasB₁, hasB₀
+export @parameters, AbstractTissueProperties, hasB₁, hasB₀
 export T1T2, T1T2B1, T1T2B0, T1T2B1B0
 export T1T2PDxPDy, T1T2B1PDxPDy, T1T2B0PDxPDy, T1T2B1B0PDxPDy
 

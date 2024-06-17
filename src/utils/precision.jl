@@ -44,5 +44,5 @@ _change_precision(::Type{T}, x::AbstractArray{<:Complex{<:AbstractFloat}}) where
 # _change_precision(::Type{T}, x::NTuple{N}) where {N,T} = NTuple{N,T}(x)
 # rule for namedtuple (not needed either it seems)
 # _change_precision(::Type{T}, x::NamedTuple{M,NTuple{N}}) where {M,N,T} = NamedTuple{M, NTuple{N,T}}(x)
-# rule for AbstractTissueParameters
-_change_precision(::Type{T}, x::P) where {T,P<:AbstractTissueParameters} = P.name.wrapper{T}(x)
+# rule for AbstractTissueProperties
+_change_precision(::Type{T}, x::P) where {T,P<:AbstractTissueProperties} = P.name.wrapper{T}(x)

@@ -253,12 +253,12 @@ end
     @test f32(t).Δk_adc == ComplexF32.(t.Δk_adc)
     @test f32(t).py == t.py
 
-    # test AbstractTissueParameters
+    # test AbstractTissueProperties
     p = T₁T₂B₁B₀(1.0, 2.0, 3.0, 4.0)
     f32(p) == T₁T₂B₁B₀(1.0f0, 2.0f0, 3.0f0, 4.0f0)
     f64(f32(p)) == p
 
-    # test StructArray{<:AbstractTissueParameters}
+    # test StructArray{<:AbstractTissueProperties}
     nvoxels = 100
     T₁ = rand(nvoxels)
     T₂ = 0.1 * T₁
@@ -309,12 +309,12 @@ end
     @test gpu(t).py == CuArray(t.py)
     @test gpu(t).readout_oversampling == t.readout_oversampling
 
-    # test AbstractTissueParameters
+    # test AbstractTissueProperties
     p = T₁T₂B₁B₀(1.0, 2.0, 3.0, 4.0)
     @test gpu(p) == p
     @test gpu([p]) == CuArray([p])
 
-    # test StructArray{<:AbstractTissueParameters}
+    # test StructArray{<:AbstractTissueProperties}
     nvoxels = 100
     T₁ = rand(nvoxels)
     T₂ = 0.1 * T₁

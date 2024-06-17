@@ -30,7 +30,7 @@ export Generic2D
 output_size(sequence::Generic2D) = sum(sequence.sample)
 output_eltype(sequence::Generic2D) = Isochromat{eltype(sequence.GR)}
 
-@inline function simulate_magnetization!(output, sequence::Generic2D{T}, m, (p::AbstractTissueParameters)) where {T}
+@inline function simulate_magnetization!(output, sequence::Generic2D{T}, m, (p::AbstractTissueProperties)) where {T}
 
     Δt = sequence.Δt
     GR = sequence.GR

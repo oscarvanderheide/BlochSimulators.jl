@@ -28,7 +28,7 @@ Pages   = ["operators/epg.jl"]
 ## Tissue Parameters
 
 ```@docs
-AbstractTissueParameters
+AbstractTissueProperties
 ```
 
 ```@autodocs

@@ -38,7 +38,7 @@ output_size(sequence::pSSFP2D) = length(sequence.RF_train)
 output_eltype(sequence::pSSFP2D) = eltype(sequence.RF_train)
 
 # Sequence implementation
-@inline function simulate_magnetization!(magnetization, sequence::pSSFP2D, m, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(magnetization, sequence::pSSFP2D, m, p::AbstractTissueProperties)
 
     T₁, T₂ = p.T₁, p.T₂
 

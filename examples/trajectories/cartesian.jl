@@ -119,7 +119,7 @@ implementation is not needed.
 function magnetization_to_signal(
     ::Union{CPU1,CPUThreads,CUDALibs},
     magnetization,
-    parameters::StructArray{<:AbstractTissueParameters},
+    parameters::StructArray{<:AbstractTissueProperties},
     trajectory::CartesianTrajectory,
     coordinates::StructArray{<:Coordinates},
     coil_sensitivities)
@@ -187,7 +187,7 @@ function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory,
     return nothing
 end
 
-@inline function to_sample_point(mₑ::Complex, trajectory::CartesianTrajectory, readout_idx, sample_idx, r::Coordinates, p::AbstractTissueParameters)
+@inline function to_sample_point(mₑ::Complex, trajectory::CartesianTrajectory, readout_idx, sample_idx, r::Coordinates, p::AbstractTissueProperties)
 
     # Note that m has already been phase-encoded
 
