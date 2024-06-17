@@ -8,7 +8,7 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 # Arguments
 - `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
-- `parameters::StructArray{<:AbstractTissueProperties}`: Array with different combinations of tissue properties for each voxel.
+- `parameters::SimulationParameters`: Array with different combinations of tissue properties for each voxel.
 
 # Note
 - If `resource == CUDALibs()`, the sequence and parameters must have been moved to the GPU using `gpu(sequence)` and `gpu(parameters)` prior to calling this function.

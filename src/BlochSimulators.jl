@@ -17,13 +17,12 @@ using Unitless
 import Adapt: adapt, adapt_storage, @adapt_structure # to allow custom Structs of non-isbits type to be used on gpu
 import Functors: @functor, functor, fmap, isleaf
 
-# hard-coded nr of threads per block on GPU
-const THREADS_PER_BLOCK = 32
+# To perform simulations within a voxel we need tissue properties as inputs.
+# Supported combinations of tissue properties are defined in tissueparameters.jl
+include("interfaces/tissueproperties.jl")
 
-# To perform simulations we need tissue properties as inputs.
-# Supported combinations of tissue properties are defined
-# in tissueparameters.jl
-include("interfaces/tissueparameters.jl")
+# To perform simulations for multiple voxels, we store the tissue properties in a `StructArray` which we refer to as the `SimulationParameters`.
+const SimulationsParameters = StructArray{<:AbstractTissueProperties}
 
 export @parameters, AbstractTissueProperties, hasB₁, hasB₀
 export T1T2, T1T2B1, T1T2B0, T1T2B1B0
@@ -89,6 +88,9 @@ include("utils/precision.jl")
 # # 2. Multi-process CPU computation (when workers are added with addprocs)
 # # 3. CUDA GPU computation
 # # ComputationalResources is used to dispatch on the different computational resources.
+
+# Hard-coded nr of threads per block on GPU
+const THREADS_PER_BLOCK = 32
 
 # # Main function to call a sequence simulator with a set of input parameters are defined in simulate.jl
 include("simulate/magnetization.jl")

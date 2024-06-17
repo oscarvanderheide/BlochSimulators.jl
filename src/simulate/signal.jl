@@ -7,9 +7,9 @@ where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρ
 # Arguments
 - `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
-- `parameters::StructVector{<:AbstractTissueProperties}`: Vector with tissue properties for each voxel
+- `parameters::SimulationParameters`: Array with tissue properties for each voxel
 - `trajectory::AbstractTrajectory`: Custom trajectory struct
-- `coordinates::StructVector{<:Coordinates}`: Vector with spatial coordinates for each voxel
+- `coordinates::StructArray{<:Coordinates}`: Array with spatial coordinates for each voxel
 - `coil_sensitivities::AbstractMatrix`: Sensitivity of coil `j` in voxel `v` is given by `coil_sensitivities[v,j]`
 
 # Returns
@@ -18,9 +18,9 @@ where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρ
 function simulate_signal(
     resource::AbstractResource,
     sequence::BlochSimulator{T},
-    parameters::StructVector{<:AbstractTissueProperties{N,T}},
+    parameters::StructArray{<:AbstractTissueProperties{N,T}},
     trajectory::AbstractTrajectory{T},
-    coordinates::StructVector{<:Coordinates{T}},
+    coordinates::StructArray{<:Coordinates{T}},
     coil_sensitivities::AbstractMatrix{Complex{T}}) where {N,T}
 
     @assert length(parameters) == size(coil_sensitivities, 1)

@@ -1,7 +1,7 @@
 """
     AbstractTissueProperties{N,T} <: FieldVector{N,T}
 
-Abstract type for custom structs that hold tissue properties used for a simulation within one voxel. For simulations, `StructArray{<:AbstractTissueProperties}`s are used that can be assembled with the `@parameters` macro.
+Abstract type for custom structs that hold tissue properties used for a simulation within one voxel. For simulations, `SimulationParameters`s are used that can be assembled with the `@parameters` macro.
 
 # Possible fields:
 - `T₁::T`: T₁ relaxation parameters of a voxel
@@ -140,7 +140,7 @@ end
 """
     macro parameters(args...)
 
-Create a `StructArray{<:AbstractTissueProperties}` with the actual struct type being determined by the arguments passed to the macro.
+Create a `SimulationParameters` with the actual struct type being determined by the arguments passed to the macro.
 
 # Examples
 ```julia

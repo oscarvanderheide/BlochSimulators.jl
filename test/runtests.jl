@@ -258,7 +258,7 @@ end
     f32(p) == T₁T₂B₁B₀(1.0f0, 2.0f0, 3.0f0, 4.0f0)
     f64(f32(p)) == p
 
-    # test StructArray{<:AbstractTissueProperties}
+    # test SimulationParameters
     nvoxels = 100
     T₁ = rand(nvoxels)
     T₂ = 0.1 * T₁
@@ -314,7 +314,7 @@ end
     @test gpu(p) == p
     @test gpu([p]) == CuArray([p])
 
-    # test StructArray{<:AbstractTissueProperties}
+    # test SimulationParameters
     nvoxels = 100
     T₁ = rand(nvoxels)
     T₂ = 0.1 * T₁

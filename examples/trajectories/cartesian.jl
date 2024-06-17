@@ -119,7 +119,7 @@ implementation is not needed.
 function magnetization_to_signal(
     ::Union{CPU1,CPUThreads,CUDALibs},
     magnetization,
-    parameters::StructArray{<:AbstractTissueProperties},
+    parameters::SimulationParameters,
     trajectory::CartesianTrajectory,
     coordinates::StructArray{<:Coordinates},
     coil_sensitivities)
@@ -168,8 +168,7 @@ end
 @inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
 
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates::StructArray{<:Coordinates})
-    # y = map(r -> r.y, coordinates) |> vec
-    y = coordinates.y
+    y = coordinates.y |> vec
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
     return nothing
