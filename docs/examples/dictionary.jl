@@ -8,6 +8,7 @@ Pkg.activate("docs");
 
 using BlochSimulators
 using ComputationalResources
+using StructArrays
 
 # First, construct a FISP sequence struct (see `src/sequences/fisp.jl`
 # for which fields are necessary and which constructors exist)
@@ -85,7 +86,7 @@ BlochSimulators.CUDA.device();
 
 # Increase the number of parameters:
 T₁ = rand(500_000)
-T₂ = 0.1 * T₂
+T₂ = 0.1 * T₁
 cu_parameters = (@parameters T₁ T₂) |> f32 |> gpu
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
