@@ -39,7 +39,7 @@ include("operators/isochromat.jl")
 include("operators/epg.jl")
 include("operators/utils.jl")
 
-export Isochromat, EPGStates
+export Isochromat, ConfigurationStates
 
 # Currently included example sequences:
 

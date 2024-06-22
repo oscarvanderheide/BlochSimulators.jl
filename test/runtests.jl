@@ -110,7 +110,7 @@ end
 @testset "Test operator functions for EPG model" begin
 
     # create single spin isochromat
-    Ω = @MMatrix zeros(ComplexF64, 3, 20)
+    Ω = zeros(ComplexF64, 3, 20) |> ConfigurationStates
 
     # check initial conditions
     BlochSimulators.initial_conditions!(Ω)
@@ -149,13 +149,13 @@ end
     @test all(Ω[3, :] .== complex(-0.1))
 
     # test decay
-    Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω = rand(ComplexF64, 3, 20) |> ConfigurationStates
     Δt = 1e7
     E₁ = exp(-Δt / 0.8)
     E₂ = exp(-Δt / 0.05)
     # really long Δt so everything should be zero after decay
     BlochSimulators.decay!(Ω, E₁, E₂)
-    @test all(iszero.(Ω))
+    @test all(iszero.(Ω.matrix))
 
     # test regrowth
 
@@ -185,7 +185,7 @@ end
     # dephasing
 
     # dont act on Z states
-    Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω = rand(ComplexF64, 3, 20) |> ConfigurationStates
     Ω2 = copy(Ω)
     BlochSimulators.dephasing!(Ω)
     @test Ω[3, :] == Ω2[3, :]
@@ -211,7 +211,7 @@ end
     # spoil
 
     # check that transverse states are nulled
-    Ω = @MMatrix rand(ComplexF64, 3, 20)
+    Ω = rand(ComplexF64, 3, 20) |> ConfigurationStates
     BlochSimulators.spoil!(Ω)
     @test all(Ω[1, :] .== complex(0.0))
     @test all(Ω[2, :] .== complex(0.0))
@@ -282,63 +282,66 @@ end
 
 @testset "Test functions to move to gpu" begin
 
-    # first, test some complicated but random nested structure
-    x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
+    if CUDA.functional()
+        # first, test some complicated but random nested structure
+        x = [1, 2.0, 3.0f0, [4.0, 5.0], 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
-    @test gpu(x) == [1, 2.0, 3.0f0, CuArray([4.0, 5.0]), 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
+        @test gpu(x) == [1, 2.0, 3.0f0, CuArray([4.0, 5.0]), 6.0im, (7.0, 8.0im), (a=9.0, b=10.0im)]
 
-    # test FISP sequence struct
-    nTR = 10
-    s = FISP2D(nTR)
+        # test FISP sequence struct
+        nTR = 10
+        s = FISP2D(nTR)
 
-    @test gpu(s).RF_train == CuArray(s.RF_train)
-    @test gpu(s).sliceprofiles == CuArray(s.sliceprofiles)
-    @test gpu(s).TR == s.TR
-    @test gpu(s).TE == s.TE
-    @test gpu(s).TI == s.TI
-    @test gpu(s).max_state == s.max_state
+        @test gpu(s).RF_train == CuArray(s.RF_train)
+        @test gpu(s).sliceprofiles == CuArray(s.sliceprofiles)
+        @test gpu(s).TR == s.TR
+        @test gpu(s).TE == s.TE
+        @test gpu(s).TI == s.TI
+        @test gpu(s).max_state == s.max_state
 
-    # test Cartesian trajectory struct
-    t = CartesianTrajectory(nTR, 100)
+        # test Cartesian trajectory struct
+        t = CartesianTrajectory(nTR, 100)
 
-    @test gpu(t).nreadouts == t.nreadouts
-    @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
-    @test gpu(t).Δt == t.Δt
-    @test gpu(t).k_start_readout == CuArray(t.k_start_readout)
-    @test gpu(t).Δk_adc == t.Δk_adc
-    @test gpu(t).py == CuArray(t.py)
-    @test gpu(t).readout_oversampling == t.readout_oversampling
+        @test gpu(t).nreadouts == t.nreadouts
+        @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
+        @test gpu(t).Δt == t.Δt
+        @test gpu(t).k_start_readout == CuArray(t.k_start_readout)
+        @test gpu(t).Δk_adc == t.Δk_adc
+        @test gpu(t).py == CuArray(t.py)
+        @test gpu(t).readout_oversampling == t.readout_oversampling
 
-    # test AbstractTissueProperties
-    p = T₁T₂B₁B₀(1.0, 2.0, 3.0, 4.0)
-    @test gpu(p) == p
-    @test gpu([p]) == CuArray([p])
+        # test AbstractTissueProperties
+        p = T₁T₂B₁B₀(1.0, 2.0, 3.0, 4.0)
+        @test gpu(p) == p
+        @test gpu([p]) == CuArray([p])
 
-    # test SimulationParameters
-    nvoxels = 100
-    T₁ = rand(nvoxels)
-    T₂ = 0.1 * T₁
-    parameters = @parameters T₁ T₂
+        # test SimulationParameters
+        nvoxels = 100
+        T₁ = rand(nvoxels)
+        T₂ = 0.1 * T₁
+        parameters = @parameters T₁ T₂
 
-    T₁ = gpu(T₁)
-    T₂ = gpu(T₂)
-    parameters_gpu = @parameters T₁ T₂
-    @test typeof(parameters_gpu) == typeof(gpu(parameters))
-    @test CUDA.@allowscalar parameters_gpu == gpu(parameters)
+        T₁ = gpu(T₁)
+        T₂ = gpu(T₂)
+        parameters_gpu = @parameters T₁ T₂
+        @test typeof(parameters_gpu) == typeof(gpu(parameters))
+        @test CUDA.@allowscalar parameters_gpu == gpu(parameters)
 
-    # test StructArray{<:Coordinates}
-    x, y, z = rand(nvoxels), rand(nvoxels), rand(nvoxels)
-    coordinates = @coordinates x y z
-    coordinates_gpu = gpu(coordinates)
+        # test StructArray{<:Coordinates}
+        x, y, z = rand(nvoxels), rand(nvoxels), rand(nvoxels)
+        coordinates = @coordinates x y z
+        coordinates_gpu = gpu(coordinates)
 
-    xyz = Iterators.product(x, y, z) |> collect |> vec
-    @test coordinates_gpu.x == gpu([r[1] for r in xyz])
-    @test coordinates_gpu.y == gpu([r[2] for r in xyz])
-    @test coordinates_gpu.z == gpu([r[3] for r in xyz])
+        xyz = Iterators.product(x, y, z) |> collect |> vec
+        @test coordinates_gpu.x == gpu([r[1] for r in xyz])
+        @test coordinates_gpu.y == gpu([r[2] for r in xyz])
+        @test coordinates_gpu.z == gpu([r[3] for r in xyz])
 
-    @test CUDA.@allowscalar coordinates_gpu == gpu(coordinates)
+        @test CUDA.@allowscalar coordinates_gpu == gpu(coordinates)
 
-    @test_throws ArgumentError make_coordinates(gpu(x), gpu(y), gpu(z))
+        @test_throws ArgumentError make_coordinates(gpu(x), gpu(y), gpu(z))
+
+    end
 
 end
 
