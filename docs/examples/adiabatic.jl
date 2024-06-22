@@ -10,8 +10,6 @@ using BlochSimulators
 using StructArrays, ComputationalResources
 using PythonPlot
 
-# using KomaMRI
-
 # Parameters taken from Bernstein - Handbook of MRI Pulse Sequences, p. 196
 γ = 267.52218744e6
 T = 8e-3 # s
