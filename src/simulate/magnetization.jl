@@ -15,8 +15,7 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 - If `resource == CPUProcesses()`, the parameters must be a `DArray` with the first dimension corresponding to the number of workers. The function will distribute the simulation across the workers in the first dimension of the `DArray`.
 
 # Returns
-- `magnetization::AbstractArray`: Array of size (output_size(sequence), length(parameters)) containing the 
-    magnetization response of the sequence for all combinations of input tissue properties.
+- `magnetization::AbstractArray`: Array of size (output_size(sequence), length(parameters)) containing the magnetization response of the sequence for all combinations of input tissue properties.
 
 # Note
 If no `resource` is provided, the simulation is performed on the CPU in a multi-threaded fashion by default. If the `parameters` are a CuArray, the simulation is performed on the GPU. If the `parameters` are a DArray, the simulation is performed on the multiple workers.
@@ -103,15 +102,15 @@ end
 
 function simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters)
     nr_voxels = length(parameters)
-    nr_blocks = cld(nr_voxels, THREADS_PER_BLOCK)
+    nr_blocks = cld(nr_voxels * WARPSIZE, THREADS_PER_BLOCK)
 
     # define kernel
     magnetization_kernel!(magnetization, sequence, parameters) = begin
 
         # get voxel index
-        voxel = (blockIdx().x - Int32(1)) * blockDim().x + threadIdx().x
+        voxel = cld((blockIdx().x - Int32(1)) * blockDim().x + threadIdx().x, WARPSIZE)
 
-        # initialize state that gets updated during time integration
+        # # initialize state that gets updated during time integration
         states = initialize_states(CUDALibs(), sequence)
 
         # do nothing if voxel index is out of bounds

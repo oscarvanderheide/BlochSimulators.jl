@@ -16,7 +16,7 @@ using StructArrays
 nTR = 1000; # nr of TRs used in the simulation
 RF_train = LinRange(1, 90, nTR) |> collect; # flip angle train
 TR, TE, TI = 0.010, 0.005, 0.100; # repetition time, echo time, inversion delay
-max_state = 25; # maximum number of configuration states to keep track of
+max_state = 64; # maximum number of configuration states to keep track of
 
 sequence = FISP2D(RF_train, TR, TE, max_state, TI);
 

@@ -107,7 +107,7 @@ Base.show(io::IO, seq::FISP2D) = begin
 end
 
 # Convenience constructor to quickly generate pSSFP sequence of length nTR
-FISP2D(nTR) = FISP2D(complex.(ones(nTR)), complex.(ones(nTR, 3)), 0.010, 0.005, Val(5), 0.1)
+FISP2D(nTR) = FISP2D(complex.(ones(nTR)), complex.(ones(nTR, 3)), 0.010, 0.005, Val(32), 0.1)
 
 # Constructor for sequence without slice profile correction
 FISP2D(RF_train, TR, TE, max_state, TI) = begin

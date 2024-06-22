@@ -4,6 +4,11 @@ struct ConfigurationStates{T,M<:AbstractMatrix{T}} <: AbstractConfigurationState
 end
 
 ConfigurationStates(m::Matrix) = ConfigurationStates(MMatrix{size(m)...}(m))
+
+struct ConfigurationStatesSubset{T,M<:AbstractMatrix{T}} <: AbstractConfigurationStates{T}
+    matrix::M
+end
+
 # Make the AbstractConfigurationStates satisfy the AbstractMatrix interface
 Base.size(Ω::AbstractConfigurationStates) = size(Ω.matrix)
 Base.getindex(Ω::AbstractConfigurationStates, i::Int) = Ω.matrix[i]
@@ -12,6 +17,25 @@ Base.setindex!(Ω::AbstractConfigurationStates, v, i::Int) = setindex!(Ω.matrix
 Base.setindex!(Ω::AbstractConfigurationStates, v, I::Vararg{Int,N}) where {N} = setindex!(Ω.matrix, v, I...)
 Base.view(Ω::AbstractConfigurationStates, inds...) = view(Ω.matrix, inds...)
 
+# # The three methods below are used to make it possible to write Ω .= R * Ω instead of Ω.matrix .= R * Ω.matrix
+
+# # Overload * operator
+# function Base.:*(R::AbstractMatrix, Ω::AbstractConfigurationStates)
+#     # Assuming simple matrix multiplication for demonstration
+#     return typeof(Ω)(R * Ω.matrix)
+# end
+
+# Overload broadcasted assignment for CustomMatrixType
+function Base.broadcasted(::typeof(identity), Ω::AbstractConfigurationStates)
+    # This allows .= to work by returning the object itself in a broadcasted context
+    return Ω
+end
+
+function Base.copyto!(Ω::AbstractConfigurationStates, result::AbstractConfigurationStates)
+    # Implement how the result of R * Ω should be stored back into Ω
+    Ω.matrix .= result.matrix
+    return Ω
+end
 
 
 """
@@ -50,7 +74,6 @@ and for these sequences a method needs to be added to this function.
 """
 @inline Ω_eltype(sequence::EPGSimulator{T,Ns}) where {T,Ns} = Complex{T}
 
-
 """
     initialize_states(::AbstractResource, sequence::EPGSimulator{T,Ns}) where {T,Ns}
 
@@ -68,20 +91,30 @@ end
 Initialize an array of EPG states on a CUDA GPU to be used throughout the simulation.
 """
 @inline function initialize_states(::CUDALibs, sequence::EPGSimulator{T,Ns}) where {T,Ns}
-    # request shared memory in which configuration states are stored
-    # (all threads request for the entire threadblock)
-    Ω_shared = CUDA.CuStaticSharedArray(Ω_eltype(sequence), (3, Ns, THREADS_PER_BLOCK))
-    # get view for configuration states of this thread's voxel
-    # note that this function gets called inside a CUDA kernel
-    # so it has has access to threadIdx
-    Ω_view = view(Ω_shared, :, :, threadIdx().x)
-    # wrap in a ConfigurationStates object
-    Ω = MMatrix{3,Ns}(Ω_view)
-    Ω = ConfigurationStates(Ω)
+    # # request shared memory in which configuration states are stored
+    # # (all threads request for the entire threadblock)
+    # Ω_shared = CUDA.CuStaticSharedArray(Ω_eltype(sequence), (3, Ns, THREADS_PER_BLOCK))
+    # # get view for configuration states of this thread's voxel
+    # # note that this function gets called inside a CUDA kernel
+    # # so it has has access to threadIdx
+    # Ω_view = view(Ω_shared, :, :, threadIdx().x)
+    # # wrap in a ConfigurationStates object
+    # Ω = MMatrix{3,Ns}(Ω_view)
+    # Ω = ConfigurationStates(Ω)
+
+    # is Ns is not a multiple of 32, error
+    if (Ns % WARPSIZE != 0)
+        error("Number of states must be a multiple of THREADS_PER_BLOCK")
+    end
+
+    Ω = @MMatrix zeros(Ω_eltype(sequence), 3, Ns ÷ WARPSIZE)
+
+    return ConfigurationStatesSubset(Ω)
 end
 
+#
 """
-    initial_conditions!(Ω::EPGStates)
+    initial_conditions!(Ω::AbstractConfigurationStates)
 
 Set all components of all states to 0, except the Z-component of the 0th state which is set to 1.
 """
@@ -91,10 +124,13 @@ Set all components of all states to 0, except the Z-component of the 0th state w
     return nothing
 end
 
-# @. Ω = 0
-# Z(Ω)[0] = 1
-# return nothing
-
+@inline function initial_conditions!(Ω::ConfigurationStatesSubset)
+    @. Ω = 0
+    if laneid() == 1
+        @inbounds Z(Ω)[0] = 1
+    end
+    return nothing
+end
 
 # RF excitation
 
@@ -219,6 +255,12 @@ T₁ regrowth for Z-component of 0th order state.
     @inbounds Z(Ω)[0] += (1 - E₁)
 end
 
+@inline function regrowth!(Ω::ConfigurationStatesSubset, E₁)
+    if laneid() == 1
+        @inbounds Z(Ω)[0] += (1 - E₁)
+    end
+end
+
 # Dephasing
 
 """
@@ -248,10 +290,66 @@ end
     @inbounds F₊[0] = conj(F̄₋[0])
 end
 
+@inline function dephasing!(Ω::ConfigurationStatesSubset)
+    shuffle_down!(F̄₋(Ω))
+    shuffle_up!(F₊(Ω), F̄₋(Ω))
+end
+
+# shuffle down the F- states, set highest state to 0
+@inline function shuffle_down!(F̄₋)
+
+    mask = CUDA.FULL_MASK
+    src_lane = mod1(laneid() + 1, WARPSIZE)
+    for k in eachindex(F̄₋)
+        @inbounds F̄₋ᵏ = F̄₋[k]
+
+        if laneid() == Int32(1)
+            if k < lastindex(F̄₋)
+                @inbounds F̄₋ᵏ = F̄₋[k+1]
+            end
+        end
+        F̄₋ᵏ = CUDA.shfl_sync(mask, F̄₋ᵏ, src_lane)  # Broadcast value from the first lane
+        @inbounds F̄₋[k] = F̄₋ᵏ
+
+    end
+
+    if laneid() == WARPSIZE
+        @inbounds F̄₋[end] = 0
+    end
+
+    return nothing
+end
+
+# shuffle up the F₊ states and let F₊[0] be conj(F₋[0])
+@inline function shuffle_up!(F₊, F̄₋)
+
+    # Mask that excludes the last thread in each warp
+    mask = CUDA.FULL_MASK
+    src_lane = mod1(laneid() - Int32(1), WARPSIZE)
+
+    # Shuffle down the F- values
+    kk = Int32(lastindex(F₊))
+    for k in kk:Int32(-1):Int32(0)
+        @inbounds F₊ᵏ = F₊[k]
+
+        if laneid() == WARPSIZE
+            if k > Int32(0)
+                @inbounds F₊ᵏ = F₊[k-1]
+            end
+        end
+
+        @inbounds F₊[k] = CUDA.shfl_sync(mask, F₊ᵏ, src_lane)
+    end
+    if laneid() == Int32(1)
+        @inbounds F₊[begin] = conj(F̄₋[begin])
+    end
+    return nothing
+end
+
 # Invert
 
 """
-    invert!(Ω::EPGStates, p::AbstractTissueProperties)
+    invert!(Ω::AbstractConfigurationStates, p::AbstractTissueProperties)
 
 Invert `Z`-component of states of all orders. *Assumes fully spoiled transverse magnetization*.
 """
@@ -295,6 +393,12 @@ The `+=` is needed for 2D sequences where slice profile is taken into account.
     @inbounds output[index] += F₊(Ω)[0]
 end
 
+@inline function sample_transverse!(output, index::Union{Integer,CartesianIndex}, Ω::ConfigurationStatesSubset)
+    if laneid() == 1
+        @inbounds output[index] += F₊(Ω)[0]
+    end
+end
+
 """
     sample_Ω!(output, index::Union{Integer,CartesianIndex}, Ω::AbstractConfigurationStates)
 
@@ -303,4 +407,10 @@ for 2D sequences where slice profile is taken into account.
 """
 @inline function sample_Ω!(output, index::Union{Integer,CartesianIndex}, Ω::AbstractConfigurationStates)
     @inbounds output[index] .+= Ω
+end
+
+@inline function sample_Ω!(output, index::Union{Integer,CartesianIndex}, Ω::ConfigurationStatesSubset)
+    if laneid() == 1
+        @inbounds output[index] .+= Ω
+    end
 end
