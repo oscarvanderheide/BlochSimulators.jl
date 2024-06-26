@@ -26,6 +26,7 @@ include("interfaces/tissueproperties.jl")
 export @parameters, AbstractTissueProperties, hasB₁, hasB₀
 export T1T2, T1T2B1, T1T2B0, T1T2B1B0
 export T1T2PDxPDy, T1T2B1PDxPDy, T1T2B0PDxPDy, T1T2B1B0PDxPDy
+export SimulationParameters
 
 # Informal interface for sequence implementations. By convention,
 # a sequence::BlochSimulator is used to simulate magnetization at
