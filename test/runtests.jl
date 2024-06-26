@@ -2,13 +2,14 @@ using Test
 using BlochSimulators
 
 # load general packages
-using CUDA
-using LinearAlgebra
-using StaticArrays
 using ComputationalResources
+using CUDA
 using Distributed
 using DistributedArrays
+using LinearAlgebra
+using StaticArrays
 using StructArrays
+
 
 function make_T₁T₂_structarray(nvoxels)
     T₁ = rand(nvoxels)
@@ -577,6 +578,48 @@ end
         # Simulate with CUDALibs() (GPU) and check if outcome is the same
         signal_cudalibs = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coordinates), gpu(coil_sensitivities))
         @test signal_cpu1 ≈ convert(Array, signal_cudalibs)
+    end
+
+end
+
+@testset "Test simulation of signal in batches" begin
+
+    # Simulate signal with CPU1() as reference
+    nTR = 1000
+    nvoxels = 1000
+    sequence = FISP2D(nTR)
+    sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
+    parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels] |> StructArray
+
+    trajectory = CartesianTrajectory(nTR, 100)
+    nc = 2
+    coil_sensitivities = rand(ComplexF64, nvoxels, nc)
+    coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels] |> StructArray
+    signal_reference = simulate_signal(CPU1(), sequence, parameters, trajectory, coordinates, coil_sensitivities)
+
+    # Partition the voxels in batches
+    num_voxels_per_partition = 120
+    partition_idx = Iterators.partition(1:nvoxels, num_voxels_per_partition)
+
+    partitioned_parameters = [parameters[idx] for idx in partition_idx]
+    partitioned_coordinates = [coordinates[idx] for idx in partition_idx]
+    partitioned_coil_sensitivities = [coil_sensitivities[idx, :] for idx in partition_idx]
+
+    # Simulate signal in batches
+    signal_batched = simulate_signal(CPU1(), sequence, partitioned_parameters, trajectory, partitioned_coordinates, partitioned_coil_sensitivities)
+
+    # Test if the signal is the same as the reference signal
+    @test signal_reference ≈ signal_batched
+
+    if CUDA.functional()
+        # Simulate with CUDALibs()
+        signal_reference = simulate_signal(CUDALibs(), gpu(sequence), gpu(parameters), gpu(trajectory), gpu(coordinates), gpu(coil_sensitivities))
+
+        # Simulate signal in batches
+        signal_batched = simulate_signal(CUDALibs(), gpu(sequence), gpu(partitioned_parameters), gpu(trajectory), gpu(partitioned_coordinates), gpu(partitioned_coil_sensitivities))
+
+        # Test if the signal is the same as the reference signal
+        @test signal_reference ≈ signal_batched
     end
 
 end

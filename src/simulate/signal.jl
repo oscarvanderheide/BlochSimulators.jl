@@ -43,8 +43,8 @@ end
 """
     magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Allocates memory for the signal and computes the signal for each coil separately using the `_signal_per_coil!` function. 
-    
+Allocates memory for the signal and computes the signal for each coil separately using the `_signal_per_coil!` function.
+
 # Implementation details
 The `_signal_per_coil!` function has different implementations depending on the computational resources (i.e. the type of `resource`). The default implementations loop over all time points and compute the volume integral of the transverse magnetization in each voxel for each time point separately. This loop order is not necessarily optimal (and performance may be) across all trajectories and computational resources. If a better implementation is available, add new methods to this function for those specific combinations of resources and trajectories.
 
@@ -214,6 +214,43 @@ function simulate_signal(resource, sequence::BlochSimulator, parameters::Abstrac
 
     # simulate signal and use only because there's only one coil anyway
     signal = simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities)
+
+    return signal
+end
+
+"""
+    simulate_signal(sequence, partitioned_parameters::AbstractVector{<:SimulationParameters})
+
+In situations where the number of voxels is too large to store the intermediate `magnetization` array, the signal can be calculated in batches: the voxels are divided (by the user) into partitions and the signal is calculated for each partition separately. The final signal is the sum of the signals from all partitions.
+"""
+function simulate_signal(
+    resource::AbstractResource,
+    sequence::BlochSimulator,
+    partitioned_parameters::AbstractVector{<:SimulationParameters},
+    trajectory::AbstractTrajectory,
+    partitioned_coordinates::AbstractVector{<:StructArray{<:Coordinates}},
+    partitioned_coil_sensitivities::AbstractVector{<:AbstractMatrix{<:Complex}})
+
+    # Ensure all partitioned arguments have the same number of partitions
+    @assert length(partitioned_parameters) == length(partitioned_coordinates) == length(partitioned_coil_sensitivities)
+
+    # Ensure that each partition has the same number of voxels
+    @assert all(
+        length(partitioned_parameters[i]) == size(partitioned_coil_sensitivities[i], 1) == length(partitioned_coordinates[i]) for i in 1:length(partitioned_parameters))
+
+    # Define a helper function to calculate the signal for a single partition
+    _simulate_signal(parameters, coordinates, coil_sensitivities) = begin
+        simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities)
+    end
+
+    # Loop over all partitions and sum the results
+    signal = mapreduce(
+        _simulate_signal,
+        +,
+        partitioned_parameters,
+        partitioned_coordinates,
+        partitioned_coil_sensitivities
+    )
 
     return signal
 end
