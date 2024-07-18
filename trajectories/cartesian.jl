@@ -69,7 +69,7 @@ export CartesianTrajectory
 - `signal`: Vector of length (# coils) with each element a Matrix{Complex}
         of size (# readouts, # samples per readout)
 
-# Extended help 
+# Extended help
 As noted in the description of the simulate_signal function (see `src/simulate/signal.jl`),
 we simulate the MR signal at timepoint `t` from coil `i` as:
 signalᵢ[t] = sum(m[t,v] * cᵢ[v] * ρ[v]  for v in 1:(# voxels)),
@@ -129,10 +129,6 @@ function magnetization_to_signal(
     @assert size(coil_sensitivities, 1) == length(parameters)
 
     # Load constants
-    # Maybe should start using StructArrays to get rid of the map stuff
-    # T₂ = map(p -> p.T₂, parameters) |> vec
-    # ρ = map(p -> complex(p.ρˣ, p.ρʸ), parameters) |> vec
-    # x = map(r -> r.x, coordinates) |> vec
     T₂ = parameters.T₂
     ρ = complex.(parameters.ρˣ, parameters.ρʸ)
     x = coordinates.x
