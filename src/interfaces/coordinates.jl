@@ -19,7 +19,7 @@ end
 @adapt_structure Coordinates
 
 """
-CoordinatesCollection(x::T, y::T, z::T) where {T<:AbstractArray{<:Real}}
+    make_coordinates(x::T, y::T, z::T) where {T<:AbstractArray{<:Real}}
 
 Create a 3D meshgrid of Coordinates from arrays `x`, `y`, and `z` and return it as a StructArray.
 
