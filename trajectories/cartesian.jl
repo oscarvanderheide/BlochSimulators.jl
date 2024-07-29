@@ -141,7 +141,15 @@ function magnetization_to_signal(
     # Dynamics during readout (gradient encoding, T2 decay, B0 rotation)
     # are different per voxel but the same for each readout and sample point
     # Pre-compute vector with dynamic change from one sample point to the next
-    E = @. exp(-Δt * inv(T₂)) * exp(im * (Δkₓ * x)) # todo: B0
+
+    # Gradient rotation per sample point
+    θ = Δkₓ * x
+    # Add B₀ rotation per sample point
+    if hasB₀(eltype(parameters))
+        @. θ += Δt * π * parameters.B₀ * 2
+    end
+    # Combined rotation/decay per sample point
+    E = @. exp(-Δt * inv(T₂) + im * θ)
     # To compute signal at all sample points with one matrix-matrix multiplication,
     # we pre-compute a readout_dynamics matrix instead
     Eˢ = @. E^(-(ns ÷ 2):(ns÷2)-1)'
