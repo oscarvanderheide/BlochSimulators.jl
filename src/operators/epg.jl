@@ -91,11 +91,6 @@ Set all components of all states to 0, except the Z-component of the 0th state w
     return nothing
 end
 
-# @. Ω = 0
-# Z(Ω)[0] = 1
-# return nothing
-
-
 # RF excitation
 
 """
