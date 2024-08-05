@@ -26,6 +26,7 @@ in one time step from the echo time to the start of the next RF excitation.
 - `repetitions::Int`: Number of repetitions
 - `inversion_prepulse::Bool`: With or without inversion prepulse at the start of every repetition
 - 'wait_spoiling::Bool': Spoiling is assumed before the start of a next cycle
+- 'py_undersampling_factor::Int': In some scenarios, the actual sequence is undersampled, but for simulations purposes we pretend it isn't. We then fill in the transverse magnetization at non-sampled echo times with adjacent sampled echo times.
 """
 # Create struct that holds parameters necessary for performing FISP simulations based on the EPG model
 struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator{T,Ns}
@@ -38,17 +39,18 @@ struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator
     repetitions::Int
     inversion_prepulse::Bool
     wait_spoiling::Bool
+    py_undersampling_factor::Int
 end
-# provide default value of wait_spoiling for backward compatibility
+# provide default values for wait_spoiling and py_undersampling_factor for backward compatibility
 FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse) =
-    FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, false)
+    FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, false, 2)
 
 # To be able to change precision and send to CUDA device
 @functor FISP3D
 @adapt_structure FISP3D
 
 # Methods needed to allocate an output array of the correct size and type
-output_size(sequence::FISP3D) = length(sequence.RF_train)
+output_size(sequence::FISP3D) = length(sequence.RF_train) * sequence.py_undersampling_factor
 output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 
 # If RF doesn't have phase, configuration states will be real
@@ -78,6 +80,8 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
         Ω = regrowth(Ω, E₁)
     end
 
+    R = sequence.py_undersampling_factor
+
     # Ω = initial_conditions(Ω)
     initial_conditions!(Ω)
 
@@ -97,9 +101,11 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
             # T2 decay F states, T1 decay Z states, B0 rotation until TE
             rotate_decay!(Ω, E₁ᵀᴱ, E₂ᵀᴱ, eⁱᴮ⁰⁽ᵀᴱ⁾)
             regrowth!(Ω, E₁ᵀᴱ)
-            # sample F0+
+            # sample F0+ (if there is py undersampling, fill in the transverse magnetization at non-sampled echo times as well)
             if (repetition == sequence.repetitions) # sample at the last repetition
-                sample_transverse!(magnetization, TR, Ω)
+                for i in R:-1:1
+                    sample_transverse!(magnetization, (R*TR)-i+1, Ω)
+                end
             end
             # T2 decay F states, T1 decay Z states, B0 rotation until next RF excitation
             rotate_decay!(Ω, E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ, eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾)
@@ -122,11 +128,11 @@ end
 # The _value_ of max_state needs to be part of the type, not its type (<:Int)
 # That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP,
 # here's a constructor that takes care of it in case you forget.
-FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse, wait_spoiling) =
-    FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling)
+FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor) =
+    FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor)
 
 # Add method to getindex to reduce sequence length with convenient syntax (idx is something like 1:nr_of_readouts)
-Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse, seq.wait_spoiling)
+Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse, seq.wait_spoiling, seq.py_undersampling_factor)
 
 # Nicer printing of sequence in REPL
 # Base.show(io::IO, ::MIME"text/plain", seq::FISP) = begin
@@ -142,6 +148,7 @@ Base.show(io::IO, seq::FISP3D) = begin
     println(io, "repetitions:  ", seq.repetitions)
     println(io, "inversion_prepulse: ", seq.inversion_prepulse)
     println(io, "wait_spoiling: ", seq.wait_spoiling)
+    println(io, "py_undersampling_factor: ", seq.py_undersampling_factor)
 end
 
 export FISP3D
