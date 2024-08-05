@@ -98,4 +98,8 @@ include("simulate/signal.jl")
 
 export simulate_magnetization, simulate_signal, magnetization_to_signal, phase_encoding!
 
+# Functionality to calculate partial derivatives of the magnetization w.r.t the input parameters
+include("derivatives/finite_difference.jl")
+export simulate_derivatives_finite_difference
+
 end # module
