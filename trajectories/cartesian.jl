@@ -145,7 +145,7 @@ function magnetization_to_signal(
     # Gradient rotation per sample point
     θ = Δkₓ * x
     # Add B₀ rotation per sample point
-    if hasB₀(eltype(parameters))
+    CUDA.@allowscalar if hasB₀(first(parameters))
         @. θ += Δt * π * parameters.B₀ * 2
     end
     # Combined rotation/decay per sample point
