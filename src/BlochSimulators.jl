@@ -82,17 +82,17 @@ include("../trajectories/radial.jl")
 include("utils/gpu.jl")
 include("utils/precision.jl")
 
-# # This packages supports different types of computation:
-# # 1. Single CPU computation
-# # 2. Multi-threaded CPU computation (when Julia is started with -t <nthreads>)
-# # 2. Multi-process CPU computation (when workers are added with addprocs)
-# # 3. CUDA GPU computation
-# # ComputationalResources is used to dispatch on the different computational resources.
+# This packages supports different types of computation:
+# 1. Single CPU computation
+# 2. Multi-threaded CPU computation (when Julia is started with -t <nthreads>)
+# 2. Multi-process CPU computation (when workers are added with addprocs)
+# 3. CUDA GPU computation
+# ComputationalResources is used to dispatch on the different computational resources.
 
 # Hard-coded nr of threads per block on GPU
 const THREADS_PER_BLOCK = 32
 
-# # Main function to call a sequence simulator with a set of input parameters are defined in simulate.jl
+# Main function to call a sequence simulator with a set of input parameters are defined in simulate.jl
 include("simulate/magnetization.jl")
 include("simulate/signal.jl")
 
