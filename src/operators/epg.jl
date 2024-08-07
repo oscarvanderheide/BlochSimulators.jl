@@ -160,8 +160,7 @@ Phase of RF is the phase of the pulse. If RF is real, the computations simplify 
     # double angle formula
     sinα, cosα = 2 * sinx * cosx, 2 * cos²x - one(α)
     # phase stuff
-    φ = angle(RF)
-    sinφ, cosφ = sincos(φ)
+    cosφ, sinφ = reim(normalize(RF))
     # again double angle formula
     sin2φ, cos2φ = 2 * sinφ * cosφ, 2 * cosφ^2 - one(α)
     # complex exponentials
