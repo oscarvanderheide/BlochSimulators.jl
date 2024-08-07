@@ -74,6 +74,7 @@ include("interfaces/coordinates.jl")
 export Coordinates, make_coordinates, @coordinates
 
 # Currently included example trajectories:
+include("../trajectories/_abstract.jl")
 include("../trajectories/cartesian.jl")
 include("../trajectories/radial.jl")
 

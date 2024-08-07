@@ -57,7 +57,7 @@ z = SVector{nz}(LinRange(-1, 1, nz)) # z locations
 
 sequence = pSSFP2D(RF_train, TR, γΔtRF, Δt, γΔtGRz, z)
 
-# Next, we assemble a Cartesian trajectory with linear phase encoding
+# Next, we assemble a 2D Cartesian trajectory with linear phase encoding
 # (see `src/trajectories/cartesian.jl`).
 
 nr = nTR # nr of readouts
@@ -69,7 +69,7 @@ py = repeat(py, nr ÷ N)
 Δkʸ = 2π / FOVʸ; # k-space step in y direction for Nyquist sampling
 k0 = [(-ns / 2 * Δkˣ) + im * (py[r] * Δkʸ) for r in 1:nr]; # starting points in k-space per readout
 
-trajectory = CartesianTrajectory(nr, ns, Δt_adc, k0, Δkˣ, py, 1);
+trajectory = CartesianTrajectory2D(nr, ns, Δt_adc, k0, Δkˣ, py, 1);
 
 # We use two different receive coils
 coil₁ = complex.(repeat(LinRange(0.5, 1.0, N), 1, N));

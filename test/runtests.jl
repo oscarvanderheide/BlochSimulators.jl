@@ -243,7 +243,7 @@ end
     @test f32(s).max_state == s.max_state
 
     # test Cartesian trajectory struct
-    t = CartesianTrajectory(nTR, 100)
+    t = CartesianTrajectory2D(nTR, 100)
 
     @test f64(t) == t
 
@@ -301,7 +301,7 @@ end
         @test gpu(s).max_state == s.max_state
 
         # test Cartesian trajectory struct
-        t = CartesianTrajectory(nTR, 100)
+        t = CartesianTrajectory2D(nTR, 100)
 
         @test gpu(t).nreadouts == t.nreadouts
         @test gpu(t).nsamplesperreadout == t.nsamplesperreadout
@@ -392,7 +392,7 @@ end
 
     # Use some trajectory to simulate signal
     nr, ns = 100, 40
-    trajectory = CartesianTrajectory(nr, ns)
+    trajectory = CartesianTrajectory2D(nr, ns)
 
     s = simulate_signal(CPU1(), sequence, parameters, trajectory, coordinates)
 
@@ -409,7 +409,7 @@ end
 
 end
 
-@testset "Tests for CartesianTrajectory" begin
+@testset "Tests for CartesianTrajectory2D" begin
 
     # constants
     nr = 100
@@ -424,19 +424,19 @@ end
     os = 1
 
     # assemble Cartesian trajectory
-    cartesian = CartesianTrajectory(nr, ns, Δt, k0, Δkˣ, py, os)
+    cartesian = CartesianTrajectory2D(nr, ns, Δt, k0, Δkˣ, py, os)
 
     # test whether getindex method to reduce sequence length works
-    @test cartesian[1:50].k_start_readout == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).k_start_readout
-    @test cartesian[1:50].Δk_adc == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).Δk_adc
-    @test cartesian[1:50].py == CartesianTrajectory(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).py
+    @test cartesian[1:50].k_start_readout == CartesianTrajectory2D(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).k_start_readout
+    @test cartesian[1:50].Δk_adc == CartesianTrajectory2D(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).Δk_adc
+    @test cartesian[1:50].py == CartesianTrajectory2D(50, ns, Δt, k0[1:50], Δkˣ, py[1:50], os).py
 
     @test BlochSimulators.sampling_mask(cartesian)[10] == CartesianIndices((1:ns, 10:10))
 
     @test BlochSimulators.kspace_coordinates(cartesian)[:, 1] == k0[1] .+ (collect(0:ns-1) .* Δkˣ)
 end
 
-@testset "Tests for RadialTrajectory" begin
+@testset "Tests for RadialTrajectory2D" begin
 
     # assemble radial trajectory
     nr = 100
@@ -454,12 +454,12 @@ end
     Δk = collect(@. exp(im * φ) * Δk)
     os = 1
 
-    radial = RadialTrajectory(nr, ns, Δt, k0, Δk, φ, 1)
+    radial = RadialTrajectory2D(nr, ns, Δt, k0, Δk, φ, 1)
 
     # test whether getindex method to reduce sequence length works
-    @test radial[1:50].k_start_readout == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).k_start_readout
-    @test radial[1:50].Δk_adc == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).Δk_adc
-    @test radial[1:50].φ == RadialTrajectory(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).φ
+    @test radial[1:50].k_start_readout == RadialTrajectory2D(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).k_start_readout
+    @test radial[1:50].Δk_adc == RadialTrajectory2D(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).Δk_adc
+    @test radial[1:50].φ == RadialTrajectory2D(50, ns, Δt, k0[1:50], Δk[1:50], φ[1:50], os).φ
 
     # test gradient delay for radial
     S = rand(2, 2)
@@ -481,7 +481,7 @@ end
     magnetization = complex.(ones(nr, nv))
     parameters = fill(T₁T₂ρˣρʸ(Inf, Inf, 1.0, 0.0), nv) |> StructArray
     coordinates = fill(Coordinates(0.0, 0.0, 0.0), nv) |> StructArray
-    trajectory = RadialTrajectory(nr, ns)
+    trajectory = RadialTrajectory2D(nr, ns)
     coil_sensitivities = complex(ones(nv, nc))
     resource = CPU1()
 
@@ -517,7 +517,7 @@ end
     sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels] |> StructArray
 
-    trajectory = CartesianTrajectory(nTR, 100)
+    trajectory = CartesianTrajectory2D(nTR, 100)
     nc = 2
     coil_sensitivities = rand(ComplexF64, nvoxels, nc)
     coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels] |> StructArray
@@ -554,7 +554,7 @@ end
     sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels] |> StructArray
 
-    trajectory = RadialTrajectory(nTR, 100)
+    trajectory = RadialTrajectory2D(nTR, 100)
     nc = 2
     coil_sensitivities = rand(ComplexF64, nvoxels, nc)
     coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels] |> StructArray
@@ -591,7 +591,7 @@ end
     sequence.sliceprofiles[:, :] .= rand(ComplexF64, nTR, 3)
     parameters = [T₁T₂ρˣρʸ(1.0, 0.1, rand(2)...) for _ = 1:nvoxels] |> StructArray
 
-    trajectory = CartesianTrajectory(nTR, 100)
+    trajectory = CartesianTrajectory2D(nTR, 100)
     nc = 2
     coil_sensitivities = rand(ComplexF64, nvoxels, nc)
     coordinates = [Coordinates(rand(3)...) for _ = 1:nvoxels] |> StructArray

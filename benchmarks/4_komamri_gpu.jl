@@ -125,7 +125,7 @@ k₀ = -(nsamplesperreadout ÷ 2) .* Δk
 
 Δt_adc = sys.ADC_Δt
 
-trajectory = BlochSimulators.RadialTrajectory(nTR, nsamplesperreadout, Δt_adc, k₀, Δk, φ)
+trajectory = BlochSimulators.RadialTrajectory2D(nTR, nsamplesperreadout, Δt_adc, k₀, Δk, φ)
 trajectory = gpu(f32(trajectory))
 
 ## Compile and check whether output is similar
@@ -253,7 +253,7 @@ p = @pgf Axis(
         {color = colors[2], mark = "o", style = {thick}},
         Coordinates(collect(zip((N_range), (TIMINGS.blochsimulators))))
     ),
-    LegendEntry("BlochSimulators.jl (pSSFP2D + RadialTrajectory)"),
+    LegendEntry("BlochSimulators.jl (pSSFP2D + RadialTrajectory2D)"),
     PlotInc(
         {color = colors[1], mark = "o", style = {thick}},
         Coordinates(collect(zip((N_range), (TIMINGS.komamri))))
@@ -343,7 +343,7 @@ k₀ = -(nsamplesperreadout ÷ 2) .* Δk
 
 Δt_adc = sys.ADC_Δt
 
-trajectory = BlochSimulators.RadialTrajectory(nTR, nsamplesperreadout, Δt_adc, k₀, Δk, φ)
+trajectory = BlochSimulators.RadialTrajectory2D(nTR, nsamplesperreadout, Δt_adc, k₀, Δk, φ)
 trajectory = gpu(f32(trajectory))
 
 ## Compile and check whether output is similar

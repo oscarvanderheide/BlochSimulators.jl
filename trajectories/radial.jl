@@ -1,15 +1,14 @@
 ### Type definition
 
 """
-    RadialTrajectory{T,I,U,V} <: SpokesTrajectory{T}
+    RadialTrajectory2D{T,I,U,V} <: SpokesTrajectory{T}
 
 Struct that is used to implement a typical radial gradient trajectory.
 The trajectory can is described in a compact fashion by only storing
 the starting position in k-space (`k_start_readout`) for each readout
 as well as the step in k-space per readout point `Δk_adc`.
 
-Note that CartesianTrajectory and RadialTrajectory are essentially the same in when
-using when using this compact description. A SpokesTrajectory struct is therefore
+Note that CartesianTrajectory2D and RadialTrajectory2D are essentially the same when using this compact description. A SpokesTrajectory struct is therefore 
 defined as a supertype of both and methods are defined for SpokesTrajectory instead
 to avoid code repetition.
 
@@ -26,7 +25,7 @@ sequences with different numbers of samples per readout it may be a vector of in
 - `φ::V`: Radial angle for each readout
 - `readout_oversampling::I`: Readout oversampling factor
 """
-struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
+struct RadialTrajectory2D{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
     nreadouts::I
     nsamplesperreadout::I
     Δt::T # time between sample points
@@ -36,14 +35,14 @@ struct RadialTrajectory{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
     readout_oversampling::I
 end
 
-@functor RadialTrajectory
-@adapt_structure RadialTrajectory
+@functor RadialTrajectory2D
+@adapt_structure RadialTrajectory2D
 
-export RadialTrajectory
+export RadialTrajectory2D
 
 ### Interface requirements
 
-@inline function to_sample_point(mₑ, trajectory::RadialTrajectory, readout_idx, sample_idx, coordinates, p)
+@inline function to_sample_point(mₑ, trajectory::RadialTrajectory2D, readout_idx, sample_idx, coordinates, p)
 
     # Read in constants
     R₂ = inv(p.T₂)
@@ -72,13 +71,13 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-RadialTrajectory(nr, ns) = RadialTrajectory(nr, ns, 10^-5, complex.(ones(nr)), complex.(ones(nr)), 1:(360/nr):360, 2)
+RadialTrajectory2D(nr, ns) = RadialTrajectory2D(nr, ns, 10^-5, complex.(ones(nr)), complex.(ones(nr)), 1:(360/nr):360, 2)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
-Base.getindex(tr::RadialTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc[idx], tr.φ[idx], tr.readout_oversampling)
+Base.getindex(tr::RadialTrajectory2D, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc[idx], tr.φ[idx], tr.readout_oversampling)
 
 # Nicer printing in REPL
-Base.show(io::IO, tr::RadialTrajectory) = begin
+Base.show(io::IO, tr::RadialTrajectory2D) = begin
     println("")
     println(io, "Radial trajectory")
     println(io, "nreadouts:            ", tr.nreadouts)
@@ -91,12 +90,12 @@ Base.show(io::IO, tr::RadialTrajectory) = begin
 end
 
 """
-    add_gradient_delay!(tr::RadialTrajectory, S)
+    add_gradient_delay!(tr::RadialTrajectory2D, S)
 
 Apply gradient delay to radial trajectory in in-place fashion. The delay is described by the 2x2 matrix S and is assumed to influence
 the start of the readout only, not the readout direction.
 """
-function add_gradient_delay!(tr::RadialTrajectory, S)
+function add_gradient_delay!(tr::RadialTrajectory2D, S)
 
     for r = 1:tr.nreadouts
         # normal vector in (units of Δk_adc)
@@ -109,14 +108,14 @@ function add_gradient_delay!(tr::RadialTrajectory, S)
     return tr
 end
 
-add_gradient_delay(tr::RadialTrajectory, S) = add_gradient_delay!(deepcopy(tr), S)
+add_gradient_delay(tr::RadialTrajectory2D, S) = add_gradient_delay!(deepcopy(tr), S)
 
 """
-    kspace_coordinates(tr::RadialTrajectory)
+    kspace_coordinates(tr::RadialTrajectory2D)
 
 Return matrix (nrsamplesperreadout, nrreadouts) with kspace coordinates for the trajectory. Needed for nuFFT reconstructions.
 """
-function kspace_coordinates(tr::RadialTrajectory)
+function kspace_coordinates(tr::RadialTrajectory2D)
 
     nr = tr.nreadouts
     ns = tr.nsamplesperreadout

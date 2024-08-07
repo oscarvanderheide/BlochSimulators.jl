@@ -1,28 +1,12 @@
-### Type definition
-
 """
-    SpokesTrajectory{T} <: AbstractTrajectory{T}
+    CartesianTrajectory2D{T,I,U,V} <: CartesianTrajectory{T}
 
-Typical Cartesian and radial trajectories have a lot in common: a readout
-can be described by a starting point in k-space and a Δk per sample point.
-To avoid code repetition, both type of trajectories are made a subtype of
-SpokesTrajectory such that some methods that would be the same for both
-trajectories otherwise are written for SpokesTrajectory instead.
-"""
-abstract type SpokesTrajectory{T} <: AbstractTrajectory{T} end # Cartesian & Radial
-
-export SpokesTrajectory
-
-"""
-    CartesianTrajectory{T,I,U,V} <: SpokesTrajectory{T}
-
-Struct that is used to implement a typical Cartesian gradient trajectory.
+Struct that is used to implement a typical Cartesian 2D gradient trajectory.
 The trajectory is described in a compact fashion by only storing
 the starting position in k-space (`k_start_readout`) for each readout
 as well as the step in k-space per readout point `Δk_adc`.
 
-Note that CartesianTrajectory and RadialTrajectory are essentially the same in when
-using when using this compact description. A SpokesTrajectory struct is therefore
+Note that CartesianTrajectory2D and RadialTrajectory2D are essentially the same when using this compact description. A SpokesTrajectory struct is therefore
 defined as a supertype of both and methods are defined for SpokesTrajectory instead
 to avoid code repetition.
 
@@ -39,7 +23,7 @@ sequences with different numbers of samples per readout it may be a vector of in
 - `py::V`: Phase encoding index for each readout
 - `readout_oversampling::I`: Readout oversampling factor
 """
-struct CartesianTrajectory{T<:Real,I<:Integer,U<:AbstractVector,V<:AbstractVector} <: SpokesTrajectory{T}
+struct CartesianTrajectory2D{T<:Real,I<:Integer,U<:AbstractVector,V<:AbstractVector} <: SpokesTrajectory{T}
     nreadouts::I
     nsamplesperreadout::I
     Δt::T # time between sample points
@@ -49,13 +33,13 @@ struct CartesianTrajectory{T<:Real,I<:Integer,U<:AbstractVector,V<:AbstractVecto
     readout_oversampling::I # readout oversampling factor
 end
 
-@functor CartesianTrajectory
-@adapt_structure CartesianTrajectory
+@functor CartesianTrajectory2D
+@adapt_structure CartesianTrajectory2D
 
-export CartesianTrajectory
+export CartesianTrajectory2D
 
 """
-    magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetization, parameters, trajectory::CartesianTrajectory, coordinates, coil_sensitivities)
+    magnetization_to_signal(::Union{CPU1,CPUThreads,CUDALibs}, magnetization, parameters, trajectory::CartesianTrajectory2D, coordinates, coil_sensitivities)
 
 # Arguments
 - `magnetization`:          Matrix{Complex} of size (# readouts, # voxels) with phase-encoded
@@ -120,7 +104,7 @@ function magnetization_to_signal(
     ::Union{CPU1,CPUThreads,CUDALibs},
     magnetization,
     parameters::SimulationParameters,
-    trajectory::CartesianTrajectory,
+    trajectory::CartesianTrajectory2D,
     coordinates::StructArray{<:Coordinates},
     coil_sensitivities)
 
@@ -167,11 +151,7 @@ end
 
 ### Interface requirements
 
-@inline nreadouts(t::SpokesTrajectory) = t.nreadouts
-@inline nsamplesperreadout(t::SpokesTrajectory) = t.nsamplesperreadout
-@inline nsamplesperreadout(t::SpokesTrajectory, readout) = t.nsamplesperreadout
-
-function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordinates::StructArray{<:Coordinates})
+function phase_encoding!(magnetization, trajectory::CartesianTrajectory2D, coordinates::StructArray{<:Coordinates})
     y = coordinates.y |> vec
     kʸ = imag.(trajectory.k_start_readout)
     @. magnetization *= exp(im * kʸ * y')
@@ -179,7 +159,7 @@ function phase_encoding!(magnetization, trajectory::CartesianTrajectory, coordin
 end
 
 # perhaps do this with metaprogramming instead (iteratate over all subtypes of AbstractTrajectory)
-function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory, coordinates::DArray)
+function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory2D, coordinates::DArray)
 
     @sync for p in workers()
         @async begin
@@ -190,7 +170,7 @@ function phase_encoding!(magnetization::DArray, trajectory::CartesianTrajectory,
     return nothing
 end
 
-@inline function to_sample_point(mₑ::Complex, trajectory::CartesianTrajectory, readout_idx, sample_idx, r::Coordinates, p::AbstractTissueProperties)
+@inline function to_sample_point(mₑ::Complex, trajectory::CartesianTrajectory2D, readout_idx, sample_idx, r::Coordinates, p::AbstractTissueProperties)
 
     # Note that m has already been phase-encoded
 
@@ -218,15 +198,15 @@ end
 
 # Convenience constructor to quickly generate Cartesian trajectory
 # with nr readouts and ns samples per readout
-CartesianTrajectory(nr, ns) = CartesianTrajectory(nr, ns, 10^-5, complex.(ones(nr)), 1.0, (1:nr) .- (nr ÷ 2), 2)
+CartesianTrajectory2D(nr, ns) = CartesianTrajectory2D(nr, ns, 10^-5, complex.(ones(nr)), 1.0, (1:nr) .- (nr ÷ 2), 2)
 
 # Add method to getindex to reduce sequence length with convenient syntax (e.g. trajectory[idx] where idx is a range like 1:nr_of_readouts)
-Base.getindex(tr::CartesianTrajectory, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx], tr.readout_oversampling)
+Base.getindex(tr::CartesianTrajectory2D, idx) = typeof(tr)(length(idx), tr.nsamplesperreadout, tr.Δt, tr.k_start_readout[idx], tr.Δk_adc, tr.py[idx], tr.readout_oversampling)
 
 # Nicer printing in REPL
-Base.show(io::IO, tr::CartesianTrajectory) = begin
+Base.show(io::IO, tr::CartesianTrajectory2D) = begin
     println("")
-    println(io, "Cartesian trajectory")
+    println(io, "Cartesian trajectory 2D")
     println(io, "nreadouts:            ", tr.nreadouts)
     println(io, "nsamplesperreadout:   ", tr.nsamplesperreadout)
     println(io, "Δt:                   ", tr.Δt)
@@ -237,11 +217,11 @@ Base.show(io::IO, tr::CartesianTrajectory) = begin
 end
 
 """
-    kspace_coordinates(tr::CartesianTrajectory)
+    kspace_coordinates(tr::CartesianTrajectory2D)
 
 Return matrix (nrsamplesperreadout, nrreadouts) with kspace coordinates for the trajectory. Needed for nuFFT reconstructions.
 """
-function kspace_coordinates(tr::CartesianTrajectory)
+function kspace_coordinates(tr::CartesianTrajectory2D)
 
     nr = tr.nreadouts
     ns = tr.nsamplesperreadout
@@ -251,11 +231,11 @@ function kspace_coordinates(tr::CartesianTrajectory)
 end
 
 """
-    sampling_mask(tr::CartesianTrajectory)
+    sampling_mask(tr::CartesianTrajectory2D)
 
 For undersampled Cartesian trajectories, the gradient trajectory can also be described by a sampling mask.
 """
-function sampling_mask(tr::CartesianTrajectory)
+function sampling_mask(tr::CartesianTrajectory2D)
 
     nr = tr.nreadouts
     ns = tr.nsamplesperreadout
