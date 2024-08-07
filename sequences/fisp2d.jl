@@ -63,6 +63,10 @@ output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
     eⁱᴮ⁰⁽ᵀᴱ⁾ = off_resonance_rotation(Ω, TE, p)
     eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾ = off_resonance_rotation(Ω, TR - TE, p)
 
+    if hasD(p)
+      expᵈᴮ = diffusion_decay_matrix(Ω, p.D)
+    end
+
     @inbounds for spc in eachcol(sequence.sliceprofiles)
 
         initial_conditions!(Ω)
@@ -83,6 +87,9 @@ output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
             sample_transverse!(magnetization, TR, Ω)
             # T2 decay F states, T1 decay Z states, B0 rotation until next RF excitation
             rotate_decay!(Ω, E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ, eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾)
+            if hasD(p)
+              diffuse!(Ω, expᵈᴮ)
+            end
             regrowth!(Ω, E₁ᵀᴿ⁻ᵀᴱ)
             # shift F states due to dephasing gradients
             dephasing!(Ω)

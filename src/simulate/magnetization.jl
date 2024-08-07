@@ -33,6 +33,11 @@ function simulate_magnetization(
     sequence::BlochSimulator,
     parameters::AbstractVector{<:AbstractTissueProperties})
 
+    # Sanity checks
+    if hasD(first(parameters)) && !(sequence isa EPGSimulator)
+        throw(ArgumentError("Diffusion is only supported for EPG-based sequences"))
+    end
+
     # Allocate array to store magnetization for each voxel
     magnetization = _allocate_magnetization_array(resource, sequence, parameters)
 
@@ -136,6 +141,9 @@ function simulate_magnetization!(magnetization, ::CPUProcesses, sequence, parame
 end
 
 function simulate_magnetization!(magnetization, ::CUDALibs, sequence, parameters)
+
+    # Each voxel gets assigned `WARPSIZE` threads. Since `THREADS_PER_BLOCK `is fixed,
+    # the number of required blocks can then be calculated
     nr_voxels = length(parameters)
     nr_blocks = cld(nr_voxels * WARPSIZE, THREADS_PER_BLOCK)
 

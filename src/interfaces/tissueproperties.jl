@@ -10,6 +10,8 @@ that can be assembled with the `@parameters` macro.
 - `T₂::T`: Transverse relaxation time constant (in seconds).
 - `B₁::T`: Relative transmit B₁ field scaling factor (unitless).
 - `B₀::T`: Off-resonance frequency (in Hz).
+- `D::T`:  Diffusion value: the TR/TD as used in https://doi.org/10.1002/nbm.5044 
+            (in this context it is unitless: "the amount of dispersion per TR at state=1")
 - `ρˣ::T`: Real part of proton density or equilibrium magnetization M₀
   (arbitrary units).
 - `ρʸ::T`: Imaginary part of proton density or equilibrium magnetization M₀
@@ -75,6 +77,45 @@ struct T₁T₂B₁B₀{T} <: AbstractTissueProperties{4,T}
     B₀::T
 end
 
+"""
+    T₁T₂D{T} <: AbstractTissueProperties{3,T}
+
+Tissue properties struct containing `T₁`, `T₂`, and `D`. Units are defined in
+[`AbstractTissueProperties`](@ref).
+"""
+struct T₁T₂D{T} <: AbstractTissueProperties{3,T}
+    T₁::T
+    T₂::T
+    D::T
+end
+
+"""
+    T₁T₂B₁D{T} <: AbstractTissueProperties{4,T}
+
+Tissue properties struct containing `T₁`, `T₂`, `B₁`, and `D`. Units are defined in
+[`AbstractTissueProperties`](@ref).
+"""
+struct T₁T₂B₁D{T} <: AbstractTissueProperties{4,T}
+    T₁::T
+    T₂::T
+    B₁::T
+    D::T
+end
+
+"""
+    T₁T₂B₁B₀D{T} <: AbstractTissueProperties{5,T}
+
+Tissue properties struct containing `T₁`, `T₂`, `B₁`, `B₀`, and `D`. Units are defined in
+[`AbstractTissueProperties`](@ref).
+"""
+struct T₁T₂B₁B₀D{T} <: AbstractTissueProperties{5,T}
+    T₁::T
+    T₂::T
+    B₁::T
+    B₀::T
+    D::T
+end
+
 # For each subtype of AbstractTissueProperties created above, we use meta-programming to
 # create additional types that also hold proton density (ρˣ and ρʸ).
 #
@@ -124,10 +165,12 @@ end
 # Set default value to false:
 hasB₁(::AbstractTissueProperties) = false
 hasB₀(::AbstractTissueProperties) = false
+hasD(::AbstractTissueProperties) = false
 
 for P in subtypes(AbstractTissueProperties)
     @eval hasB₁(::$(P)) = $(:B₁ ∈ fieldnames(P))
     @eval hasB₀(::$(P)) = $(:B₀ ∈ fieldnames(P))
+    @eval hasD(::$(P)) =  $(:D ∈ fieldnames(P))
 end
 
 # Programatically export all subtypes of AbstractTissueProperties
@@ -146,10 +189,16 @@ function get_nonlinear_part(p::Type{<:AbstractTissueProperties})
             return T₁T₂
         elseif p <: T₁T₂B₁ρˣρʸ
             return T₁T₂B₁
+        elseif p <: T₁T₂Dρˣρʸ
+            return T₁T₂D
+        elseif p <: T₁T₂B₁Dρˣρʸ
+            return T₁T₂B₁D
         elseif p <: T₁T₂B₀ρˣρʸ
             return T₁T₂B₀
         elseif p <: T₁T₂B₁B₀ρˣρʸ
             return T₁T₂B₁B₀
+        elseif p <: T₁T₂B₁B₀Dρˣρʸ
+            return T₁T₂B₁B₀D
         else
             error("Unknown parameter type: $p")
         end
@@ -187,14 +236,20 @@ end
 
 # Define aliases for the tissue parameter types that do not use unicode characters such that, for example, `@parameters T1 T2 B0` is equivalent to `@parameters T₁ T₂ B₀`. This makes it easier for users of the package to generate tissue parameter arrays without having to type unicode characters.
 const T1T2 = T₁T₂
+const T1T2D = T₁T₂D
 const T1T2B1 = T₁T₂B₁
+const T1T2B1D = T₁T₂B₁D
 const T1T2B0 = T₁T₂B₀
 const T1T2B1B0 = T₁T₂B₁B₀
+const T1T2B1B0D = T₁T₂B₁B₀D
 
 const T1T2PDxPDy = T₁T₂ρˣρʸ
+const T1T2DPDxPDy = T₁T₂Dρˣρʸ
 const T1T2B1PDxPDy = T₁T₂B₁ρˣρʸ
+const T1T2B1DPDxPDy = T₁T₂B₁Dρˣρʸ
 const T1T2B0PDxPDy = T₁T₂B₀ρˣρʸ
 const T1T2B1B0PDxPDy = T₁T₂B₁B₀ρˣρʸ
+const T1T2B1B0DPDxPDy = T₁T₂B₁B₀Dρˣρʸ
 
 # To perform simulations for multiple voxels, we store the tissue properties in a `StructArray` which we refer to as the `SimulationParameters`.
 const SimulationParameters = StructArray{<:AbstractTissueProperties}

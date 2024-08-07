@@ -17,7 +17,6 @@ function make_T₁T₂_structarray(nvoxels)
     return @parameters T₁ T₂
 end
 
-# test some individual functions in BlochSimulators
 @testset "Test operator functions for isochromat model" begin
 
     # create single spin isochromat
@@ -216,6 +215,41 @@ end
     BlochSimulators.spoil!(Ω)
     @test all(Ω[1, :] .== complex(0.0))
     @test all(Ω[2, :] .== complex(0.0))
+
+    # diffusion
+    Ω_in = ones(ComplexF64, 3, 20) |> ConfigurationStates
+    Ω = copy(Ω_in) |> ConfigurationStates
+
+    D = 0.0
+    no_diffusion_matrix = BlochSimulators.diffusion_decay_matrix(Ω, D)
+
+    # with no diffusion, diffuse!() has no effect
+    BlochSimulators.diffuse!(Ω, no_diffusion_matrix)
+    rms_diff = sqrt(sum(abs2.(Ω - Ω_in)) / length(Ω))
+    @test rms_diff < 1e-8
+
+    # with diffusion, diffuse!() reduces the states
+    Ω = copy(Ω_in) |> ConfigurationStates
+    some_diffusion_matrix = BlochSimulators.diffusion_decay_matrix(Ω, 0.1)
+
+    @test all(some_diffusion_matrix .<= 1.0)
+
+    BlochSimulators.diffuse!(Ω, some_diffusion_matrix)
+    nonzero_in = abs.(Ω_in[:, 2:end])
+    nonzero_out = abs.(Ω[:, 2:end])
+    @test all(nonzero_out .< nonzero_in)
+
+    # The effect on high states is expected to be larger than the effect on low states
+    prev_col = some_diffusion_matrix[:,1]
+    diffusion_decay_larger_for_higher_order = true
+    for i in 2:20
+        if any(some_diffusion_matrix[:,i] .> prev_col)
+            diffusion_decay_larger_for_higher_order = false
+        end
+        prev_col = some_diffusion_matrix[:,i]
+    end
+    @test diffusion_decay_larger_for_higher_order
+
 
 end
 
@@ -772,4 +806,37 @@ end
 
     @test m₁ == m₂
     @test ∂m₁ == ∂m₂
+end
+
+@testset "Test diffusion code" begin
+
+    nTR = 1000;
+    nvoxels = 5;
+    sequence = FISP2D(nTR);
+    sequence.RF_train .= complex.([30+25*sin(2π*4.0*t/nTR) for t = 1:nTR]);
+
+    # simulate magnetization without diffusion
+    parameters = [T₁T₂ρˣρʸ(v*1.0, v*0.1, 1.0, 0.0) for v = 1:nvoxels] |> StructArray;
+    m_no_diffusion   = simulate_magnetization(CPU1(), sequence, parameters);
+
+    # simulate magnetization with D=0
+    parameters = [T₁T₂Dρˣρʸ(v*1.0, v*0.1, 0.0, 1.0, 0.0) for v = 1:nvoxels] |> StructArray;
+    m_zero_diffusion = simulate_magnetization(CPU1(), sequence, parameters);
+
+    parameters = [T₁T₂Dρˣρʸ(v*1.0, v*0.1, v*0.001, 1.0, 0.0) for v = 1:nvoxels] |> StructArray;
+    m_some_diffusion = simulate_magnetization(CPU1(), sequence, parameters);
+
+    # test diffusion simulation to not affect result when D=0
+    @test m_no_diffusion == m_zero_diffusion
+    # test that diffusion with non-zero D affects the result
+    @test m_some_diffusion !== m_zero_diffusion
+
+    if CUDA.has_cuda_gpu()
+        # Check that CPU and GPU implementations give the same results
+        parameters = [T₁T₂Dρˣρʸ(v*1.0, v*0.1, v * 0.01, 1.0, 0.0) for v = 1:nvoxels] |> StructArray;
+
+        d_nonzero_cpu = simulate_magnetization(CPU1(), f32(sequence), f32(parameters));
+        d_nonzero_gpu = simulate_magnetization(CUDALibs(), gpu(f32(sequence)), gpu(f32(parameters))) |> collect;
+        @test d_nonzero_cpu ≈ d_nonzero_gpu
+    end
 end

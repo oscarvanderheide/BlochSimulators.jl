@@ -104,7 +104,9 @@ Initialize an array of EPG states on a CUDA GPU to be used throughout the simula
         error("Number of states must be a multiple of THREADS_PER_BLOCK")
     end
 
-    Ω = @MMatrix zeros(Ω_eltype(sequence), 3, Ns ÷ WARPSIZE)
+    # Each thread holds (Ns ÷ WARPSIZE) columns of Ω
+    num_states_per_thread = Ns ÷ WARPSIZE
+    Ω = @MMatrix zeros(Ω_eltype(sequence), 3, num_states_per_thread)
 
     return ConfigurationStatesSubset(Ω)
 end
@@ -239,7 +241,7 @@ Apply phase accrual due to off-resonance to the transverse EPG states (`F₊`, `
     @. Ω.matrix[1:2, :] *= (eⁱᶿ, conj(eⁱᶿ))
 end
 
-# Decay
+# Decay and diffuse
 
 """
     decay!(Ω::AbstractConfigurationStates, E₁, E₂)
@@ -271,6 +273,72 @@ Apply combined off-resonance rotation and T₁/T₂ relaxation to the EPG states
 """
 @inline function rotate_decay!(Ω::AbstractConfigurationStates, E₁, E₂, eⁱᶿ)
     @. Ω.matrix *= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
+end
+
+
+"""
+    diffusion_decay_matrix(Ω::EPGSAbstractConfigurationStatestates, D)
+
+Pre-calculate diffusion decay according to state number. Store in a matrix with the same
+size/type as Ω s.t. later on the decay can be applied by element-wise multiplication.
+
+# Arguments
+- `Ω`: The configuration state matrix
+- `D`: The diffusion coefficient
+"""
+@inline function diffusion_decay_matrix(Ω::AbstractConfigurationStates, D::T) where {T<:Real}
+    # println("hi")
+    expbD = similar(real(Ω.matrix))
+
+    # expbD = @MMatrix zeros(real(eltype(Ω.matrix)), size(3, num_states_per_thread)
+
+    # return ConfigurationStatesSubset(Ω)
+    for state in 0:size(Ω, 2)-1
+        bᵀD = T(((state + 0.5)^2 + 1.0 / 12.0) * D)
+        bᴸD = T((state^2) * D)
+        expbᵀD = exp(-bᵀD)
+        expbᴸD = exp(-bᴸD)
+        F₊(expbD)[state] = expbᵀD
+        F̄₋(expbD)[state] = expbᵀD
+        Z(expbD)[state] = expbᴸD
+    end
+    return ConfigurationStates(expbD)
+end
+
+"""
+On GPU, when each thread only holds parts of the configuration state matrix, each thread
+only computes the corresponding columns of the diffusion decay matrix.
+"""
+@inline function diffusion_decay_matrix(Ω::ConfigurationStatesSubset, D::T) where {T<:Real}
+    expbD = similar(real(Ω.matrix))
+    # expbD = @MMatrix zeros(3,1)
+
+    num_states_per_thread = size(Ω, 2)
+    for idx in 1:num_states_per_thread
+        # Calculate the states this thread is responsible for
+        state = laneid() - 1 + (idx - 1) * WARPSIZE
+        bᵀD = T(((state + 0.5)^2 + 1.0 / 12.0) * D)
+        bᴸD = T((state^2) * D)
+        expbᵀD = exp(-bᵀD)
+        expbᴸD = exp(-bᴸD)
+        expbD[1, idx] = expbᵀD
+        expbD[2, idx] = expbᵀD
+        expbD[3, idx] = expbᴸD
+    end
+    return ConfigurationStatesSubset(expbD)
+end
+"""
+diffuse!(Ω::AbstractConfigurationStatestates, diffusion_decay)
+
+Apply diffusion decay according to state number by element-wise multiplication with
+the pre-computed diffusion decay matrix.
+
+- `Ω`: The configuration state matrix
+- `diffusion_decay`: The pre-calculated diffusion decay terms
+"""
+@inline function diffuse!(Ω, diffusion_decay)
+    @. Ω.matrix *= diffusion_decay.matrix
+    return nothing
 end
 
 # Regrowth

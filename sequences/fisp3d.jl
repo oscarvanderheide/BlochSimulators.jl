@@ -91,6 +91,10 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
 
     R = sequence.py_undersampling_factor
 
+    if hasD(p)
+      expᵈᴮ = diffusion_decay_matrix(Ω, p.D)
+    end
+
     # Ω = initial_conditions(Ω)
     initial_conditions!(Ω)
 
@@ -118,6 +122,9 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
             end
             # T2 decay F states, T1 decay Z states, B0 rotation until next RF excitation
             rotate_decay!(Ω, E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ, eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾)
+            if hasD(p)
+                diffuse!(Ω, expᵈᴮ)
+            end
             regrowth!(Ω, E₁ᵀᴿ⁻ᵀᴱ)
             # shift F states due to dephasing gradients
             dephasing!(Ω)
