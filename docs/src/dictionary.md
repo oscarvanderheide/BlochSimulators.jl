@@ -1,7 +1,8 @@
 # MR Fingerprinting Dictionary Generation
 
 ````julia
-using Pkg; Pkg.activate("docs")
+using Pkg;
+Pkg.activate("docs");
 ````
 
 In this example we demonstrate how to generate an MR Fingerprinting
@@ -10,6 +11,7 @@ dictionary using a FISP type sequence
 ````julia
 using BlochSimulators
 using ComputationalResources
+using StructArrays
 ````
 
 First, construct a FISP sequence struct (see `src/sequences/fisp.jl`
@@ -17,9 +19,9 @@ for which fields are necessary and which constructors exist)
 
 ````julia
 nTR = 1000; # nr of TRs used in the simulation
-RF_train = LinRange(1,90,nTR) |> collect; # flip angle train
-TR,TE,TI = 0.010, 0.005, 0.100; # repetition time, echo time, inversion delay
-max_state = 25; # maximum number of configuration states to keep track of
+RF_train = LinRange(1, 90, nTR) |> collect; # flip angle train
+TR, TE, TI = 0.010, 0.005, 0.100; # repetition time, echo time, inversion delay
+max_state = 64; # maximum number of configuration states to keep track of
 
 sequence = FISP2D(RF_train, TR, TE, max_state, TI);
 ````
@@ -30,8 +32,9 @@ Next, set the desired input parameters
 T₁ = 0.500:0.10:5.0; # T₁ range
 T₂ = 0.025:0.05:1.0; # T₂ range
 
-parameters = map(T₁T₂, Iterators.product(T₁,T₂)); # produce all parameter pairs
+parameters = map(T₁T₂, Iterators.product(T₁, T₂)); # produce all parameter pairs
 parameters = filter(p -> (p.T₁ > p.T₂), parameters); # remove pairs with T₂ ≤ T₁
+parameters = StructVector(parameters)
 
 println("Length parameters: $(length(parameters))")
 ````
@@ -101,7 +104,8 @@ Remember, the first time a compilation procedure takes place which, especially
 on GPU, can take some time.
 
 ````julia
-println("Active CUDA device:"); BlochSimulators.CUDA.device()
+println("Active CUDA device:");
+BlochSimulators.CUDA.device();
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 ````
@@ -115,7 +119,9 @@ Call the pre-compiled version
 Increase the number of parameters:
 
 ````julia
-cu_parameters = rand(T₁T₂, 500_000) |> f32 |> gpu
+T₁ = rand(500_000)
+T₂ = 0.1 * T₁
+cu_parameters = (@parameters T₁ T₂) |> f32 |> gpu
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 ````
