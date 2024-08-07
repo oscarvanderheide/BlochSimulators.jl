@@ -21,8 +21,6 @@ import Functors: @functor, functor, fmap, isleaf
 # Supported combinations of tissue properties are defined in tissueparameters.jl
 include("interfaces/tissueproperties.jl")
 
-
-
 export @parameters, AbstractTissueProperties, hasB₁, hasB₀
 export T1T2, T1T2B1, T1T2B0, T1T2B1B0
 export T1T2PDxPDy, T1T2B1PDxPDy, T1T2B0PDxPDy, T1T2B1B0PDxPDy
@@ -91,7 +89,10 @@ include("utils/precision.jl")
 # ComputationalResources is used to dispatch on the different computational resources.
 
 # Hard-coded nr of threads per block on GPU
-const THREADS_PER_BLOCK = 32
+if CUDA.has_cuda_gpu()
+    const WARPSIZE = CUDA.warpsize(device())
+    const THREADS_PER_BLOCK = 64
+end
 
 # Main function to call a sequence simulator with a set of input parameters are defined in simulate.jl
 include("simulate/magnetization.jl")
