@@ -40,6 +40,15 @@ struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator
     inversion_prepulse::Bool
     wait_spoiling::Bool
     py_undersampling_factor::Int
+
+    # Inner constructor
+    function FISP3D(RF_train::U, TR::T, TE::T, max_state::Val{Ns}, TI::T, TW::T, repetitions::Int, inversion_prepulse::Bool, wait_spoiling::Bool, py_undersampling_factor::Int) where {T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}}
+        if mod(Ns, 32) != 0
+            error("max_state must be a multiple of 32")
+        end
+        new{T, Ns, U}(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor)
+    end
+
 end
 # provide default values for wait_spoiling and py_undersampling_factor for backward compatibility
 FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse) =

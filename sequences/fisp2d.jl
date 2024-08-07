@@ -30,7 +30,13 @@ struct FISP2D{T,Ns,U<:AbstractVector,V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     max_state::Val{Ns}
     TI::T
 
-    # TODO: maybe add inner construction which does some sanity checks
+    # Inner constructor
+    function FISP2D(RF_train::U, sliceprofiles::V, TR::T, TE::T, max_state::Val{Ns}, TI::T) where {T, Ns, U<:AbstractVector, V<:AbstractMatrix}
+        if mod(Ns, 32) != 0
+            error("max_state must be a multiple of 32")
+        end
+        new{T, Ns, U, V}(RF_train, sliceprofiles, TR, TE, max_state, TI)
+    end
 end
 
 # To be able to change precision and send to CUDA device
