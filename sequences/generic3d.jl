@@ -23,21 +23,21 @@ end
 export Generic3D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::Generic3D) = sum(sequence.sample)
+output_size(sequence::Generic3D) = sum(sequence.sample)
 output_eltype(sequence::Generic3D) = Isochromat{eltype(sequence.GR)}
 
-@inline function simulate_magnetization!(output, sequence::Generic3D{T}, m, (p::AbstractTissueParameters)) where T
+@inline function simulate_magnetization!(output, sequence::Generic3D{T}, m, (p::AbstractTissueProperties)) where {T}
 
     Δt = sequence.Δt
     GR = sequence.GR
     RF = sequence.RF
 
-    γ = 26753.0
+    γ = T(26753.0)
     T₁, T₂ = p.T₁, p.T₂
 
     nr_timesteps = length(Δt)
 
-    x,y,z = p.x, p.y, p.z
+    x, y, z = p.x, p.y, p.z
 
     # set magnetization to (0,0,1)
     m = initial_conditions(m)
@@ -49,14 +49,14 @@ output_eltype(sequence::Generic3D) = Isochromat{eltype(sequence.GR)}
 
     for t in 1:nr_timesteps
 
-        γΔtGR = @. γ*Δt[t]*(GR[1,t], GR[2,t], GR[3,t])
-        γΔtRF = γ*Δt[t]*RF[t]
+        γΔtGR = @. γ * Δt[t] * (GR[1, t], GR[2, t], GR[3, t])
+        γΔtRF = γ * Δt[t] * RF[t]
 
         # GR, RF and B₀ induced rotation
-        m = rotate(m, γΔtRF, γΔtGR, (x,y,z), Δt[t], p)
+        m = rotate(m, γΔtRF, γΔtGR, (x, y, z), Δt[t], p)
 
         # T₁ and T₂ decay, T₁ regrowth
-        E₁, E₂ = exp(-Δt[t]/T₁), exp(-Δt[t]/T₂)
+        E₁, E₂ = exp(-Δt[t] / T₁), exp(-Δt[t] / T₂)
 
         m = decay(m, E₁, E₂)
         m = regrowth(m, E₁)

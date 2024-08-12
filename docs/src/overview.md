@@ -12,7 +12,7 @@ $s(t) = \int_V c(\vec{r})m_{\perp}(\vec{r},t)d\vec{r}.$
 
 Here $c$ is the spatially-dependent receive sensitivity of the coil used for signal reception, $V$ is field-of-view of the receive coil and $m_{\perp}(\vec{r},t)$ is the (complex) transverse magnetization at the spatial location $\vec{r}$ at time point $t$.
 
-The dynamical behaviour of the magnetization is described by the [Bloch equations](https://en.wikipedia.org/wiki/Bloch_equations) and depends on the pulse sequence used in the acquisition, tissue parameters (e.g. $T_1$, $T_2$ and proton density) and system parameters (e.g. $B_0$ and $B_{1}^{+}$ inhomogeneities). Given a pulse sequence as well as tissue- and system parameters in a voxel with spatial location $\vec{r}$, the transverse magnetization $m_{\perp}(r,t)$ at arbitrary time points $t$ can be obtained by numerical integration of the Bloch equations (i.e. _Bloch simulations_). Note that $m_{\perp}(\vec{r},t)$ can in fact be separated as
+The dynamical behaviour of the magnetization is described by the [Bloch equations](https://en.wikipedia.org/wiki/Bloch_equations) and depends on the pulse sequence used in the acquisition, tissue properties (e.g. $T_1$, $T_2$ and proton density) and system parameters (e.g. $B_0$ and $B_{1}^{+}$ inhomogeneities). Given a pulse sequence as well as tissue- and system parameters in a voxel with spatial location $\vec{r}$, the transverse magnetization $m_{\perp}(r,t)$ at arbitrary time points $t$ can be obtained by numerical integration of the Bloch equations (i.e. _Bloch simulations_). Note that $m_{\perp}(\vec{r},t)$ can in fact be separated as
 
 $m_{\perp}(\vec{r},t) = m(\vec{r},t)e^{-2\pi i \vec{k}(t)\cdot \vec{r}},$
 
@@ -42,9 +42,9 @@ Note that the (discretized) signal equation closely resembles a Discrete Fourier
 
 BlochSimulators supports two different models for performing Bloch simulations: the individual isochromat model and the extended phase graph model. For both models, basic operator functions are implemented (see [`src/operators/isochromat.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/isochromat.jl) and [`src/operators/epg.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/epg.jl)) in a type-stable and non-allocating fashion. By combining these operators, simulators for entire pulse sequences can be assembled. To this end, a user must define a new struct that is a subtype of either `IsochromatSimulator` or `EPGSimulator` with fields that are necessary to describe the pulse sequence (e.g. flip angle(s), TR, TE, etc.). A method must then be added for this new type to the `simulate_magnetization!` function which, by combining the fields of the struct with the basic operators, implements the magnetization response of the sequence. See [`src/sequences/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/sequences/_interface.jl) for additional information and requirements. Examples of sequences are provided in [`examples/sequences`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/examples/sequences).
 
-To perform simulations, tissue parameter inputs must be provided. Custom structs for different combinations of tissue parameters are introduced in this package (all of which are subtypes of `AbstractTissueParameters`). See [`src/parameters/tissueparameters.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/parameters/tissueparameters.jl) for more information.
+To perform simulations, tissue parameter inputs must be provided. Custom structs for different combinations of tissue properties are introduced in this package (all of which are subtypes of `AbstractTissueProperties`). See [`src/parameters/tissueparameters.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/parameters/tissueparameters.jl) for more information.
 
-Given a `sequence` struct together with a set of input parameters  for each voxel (currently the parameters must be an `::AbstractArray{<:AbstractTissueParameters}`), the magnetization at echo times in each voxel is obtained with the function call
+Given a `sequence` struct together with a set of input parameters  for each voxel (currently the parameters must be an `::AbstractArray{<:AbstractTissueProperties}`), the magnetization at echo times in each voxel is obtained with the function call
 
 `magnetization = simulate_magnetization(resource, sequence, parameters)`,
 
@@ -90,5 +90,5 @@ For example, given some `sequence`, `gpu(f32(sequence))` will recursively conver
 - Add diffusion operators to both the isochromat and extended phase graph models.
 - Add magnetization transfer model.
 - Add spiral and EPI trajectories.
-- Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueParameters}`.
-- Perhaps separate the spatial coordinates from the tissue parameters.
+- ~~Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueProperties}`.~~
+- ~~Perhaps separate the spatial coordinates from the tissue properties.~~

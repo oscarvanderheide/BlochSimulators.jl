@@ -3,26 +3,26 @@
 
 This struct is used to simulate gradient-spoiled sequence with varying flip angle
 scheme and adiabatic inversion prepulse using the EPG model. The TR and TE are fixed throughout
-the sequence. Instantenous RF excitations are assumed. Slice profile correction is done using the 
-partitioned EPG model, where for each flip angle a vector of RF scaling factors are determined 
-prior to the simulation (using, for example, the small tip-angle approximation or 
+the sequence. Instantenous RF excitations are assumed. Slice profile correction is done using the
+partitioned EPG model, where for each flip angle a vector of RF scaling factors are determined
+prior to the simulation (using, for example, the small tip-angle approximation or
 Shinnar LeRoux forward model).
 
 Within each TR, a single time steps is used to simulate the RF excitation. Then, in one time step we go from the
 end of the RF excitation to the echo time (applying T₁ and T₂ decay, T₁ regrowth and B₀ rotation), and again
 in one time step from the echo time to the start of the next RF excitation.
 
-# Fields 
+# Fields
 - `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and
     angle.(RF_train) should be the RF phases in degrees.
-- `sliceprofiles::V` # Matrix with RF scaling factors (a.u.) to simulate slice profile effects. 
+- `sliceprofiles::V` # Matrix with RF scaling factors (a.u.) to simulate slice profile effects.
     Each column represents the (flip angle dependent) scaling factors for one position along the slice direction.
 - `TR::T`: Repetition time in seconds, assumed constant during the sequence
 - `TE::T`: Echo time in seconds, assumed constant during the sequence
 - `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation
 - `TI::T`: Inversion delay after the inversion prepulse in seconds
 """
-struct FISP2D{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
+struct FISP2D{T,Ns,U<:AbstractVector,V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     RF_train::U
     sliceprofiles::V
     TR::T
@@ -30,7 +30,13 @@ struct FISP2D{T, Ns, U<:AbstractVector, V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     max_state::Val{Ns}
     TI::T
 
-    # TODO: maybe add inner construction which does some sanity checks
+    # Inner constructor
+    function FISP2D(RF_train::U, sliceprofiles::V, TR::T, TE::T, max_state::Val{Ns}, TI::T) where {T, Ns, U<:AbstractVector, V<:AbstractMatrix}
+        if mod(Ns, 32) != 0
+            error("max_state must be a multiple of 32")
+        end
+        new{T, Ns, U, V}(RF_train, sliceprofiles, TR, TE, max_state, TI)
+    end
 end
 
 # To be able to change precision and send to CUDA device
@@ -38,24 +44,24 @@ end
 @adapt_structure FISP2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::FISP2D) = length(sequence.RF_train)
+output_size(sequence::FISP2D) = length(sequence.RF_train)
 output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 
 # If RF doesn't have phase, configuration states will be real
 Ω_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
 
 # Sequence implementation
-@inline function simulate_magnetization!(magnetization, sequence::FISP2D, Ω, p::AbstractTissueParameters)
+@inline function simulate_magnetization!(magnetization, sequence::FISP2D, Ω, p::AbstractTissueProperties)
 
     T₁, T₂ = p.T₁, p.T₂
     TR, TE, TI = sequence.TR, sequence.TE, sequence.TI
 
-    E₁ᵀᴱ, E₂ᵀᴱ = E₁(Ω, TE, T₁),    E₂(Ω, TE, T₂)
-    E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ = E₁(Ω, TR-TE, T₁), E₂(Ω, TR-TE, T₂)
-    E₁ᵀᴵ, E₂ᵀᴵ = E₁(Ω, TI, T₁),    E₂(Ω, TI, T₂)
+    E₁ᵀᴱ, E₂ᵀᴱ = E₁(Ω, TE, T₁), E₂(Ω, TE, T₂)
+    E₁ᵀᴿ⁻ᵀᴱ, E₂ᵀᴿ⁻ᵀᴱ = E₁(Ω, TR - TE, T₁), E₂(Ω, TR - TE, T₂)
+    E₁ᵀᴵ, E₂ᵀᴵ = E₁(Ω, TI, T₁), E₂(Ω, TI, T₂)
 
     eⁱᴮ⁰⁽ᵀᴱ⁾ = off_resonance_rotation(Ω, TE, p)
-    eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾ = off_resonance_rotation(Ω, TR-TE, p)
+    eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾ = off_resonance_rotation(Ω, TR - TE, p)
 
     @inbounds for spc in eachcol(sequence.sliceprofiles)
 
@@ -66,10 +72,10 @@ output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
         decay!(Ω, E₁ᵀᴵ, E₂ᵀᴵ)
         regrowth!(Ω, E₁ᵀᴵ)
 
-        for (TR,RF) in enumerate(sequence.RF_train)
+        for (TR, RF) in enumerate(sequence.RF_train)
 
             # mix states
-            excite!(Ω, spc[TR]*RF, p)
+            excite!(Ω, spc[TR] * RF, p)
             # T2 decay F states, T1 decay Z states, B0 rotation until TE
             rotate_decay!(Ω, E₁ᵀᴱ, E₂ᵀᴱ, eⁱᴮ⁰⁽ᵀᴱ⁾)
             regrowth!(Ω, E₁ᵀᴱ)
@@ -107,7 +113,7 @@ Base.show(io::IO, seq::FISP2D) = begin
 end
 
 # Convenience constructor to quickly generate pSSFP sequence of length nTR
-FISP2D(nTR) = FISP2D(complex.(rand(nTR)), complex.(rand(nTR,3)), 0.010, 0.005, Val(5), 0.1)
+FISP2D(nTR) = FISP2D(complex.(ones(nTR)), complex.(ones(nTR, 3)), 0.010, 0.005, Val(32), 0.1)
 
 # Constructor for sequence without slice profile correction
 FISP2D(RF_train, TR, TE, max_state, TI) = begin

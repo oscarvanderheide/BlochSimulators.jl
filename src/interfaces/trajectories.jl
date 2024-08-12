@@ -1,12 +1,12 @@
 ### Type definition
 
 """
-    AbstractTrajectory
+    AbstractTrajectory{T}
 
 The abstract type of which all gradient trajectories will be a subtype. The subtypes
-should contain fields that can describe the full trajectory during a sequence.
+should contain fields that can describe the full trajectory during a sequence. The type T refers to the precision of the floating point values within the trajectory struct.
 """
-abstract type AbstractTrajectory end
+abstract type AbstractTrajectory{T} end
 
 export AbstractTrajectory
 
@@ -78,7 +78,7 @@ Requires `nreadouts` and `nsamplesperreadout` to be implemented.
 function nsamples(trajectory::AbstractTrajectory)
     ns = 0
     for r in 1:nreadouts(trajectory)
-        ns += nsamplesperreadout(trajectory,r)
+        ns += nsamplesperreadout(trajectory, r)
     end
     return ns
 
@@ -102,7 +102,7 @@ For trajectories where each readout has the same length, this is equivalent to
     readout_start = 1
 
     while !found_r # && r <= nreadouts(trajectory)
-        readout_end = readout_start + nsamplesperreadout(trajectory,r) - 1
+        readout_end = readout_start + nsamplesperreadout(trajectory, r) - 1
 
         if readout_start <= t <= readout_end
             found_r = true
@@ -113,7 +113,7 @@ For trajectories where each readout has the same length, this is equivalent to
     end
 
     s = t - readout_start + 1 # index of sample within readout
-    return r,s
+    return r, s
 end
 
 export nsamples, nreadouts, nsamplesperreadout

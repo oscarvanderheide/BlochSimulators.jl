@@ -1,7 +1,7 @@
 name = "BlochSimulators"
 uuid = "2c9a3a5d-4a8d-4ca7-a6c9-04a38836deab"
 authors = ["Oscar van der Heide <o.vanderheide@umcutrecht.nl> and contributors"]
-version = "0.2.7"
+version = "0.6.1"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -19,20 +19,20 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 Unitless = "c904d999-9673-4878-a3dd-e3ef1851788a"
 
 [compat]
-Adapt = "3.6, 4"
-CUDA = "3 - 5"
+Adapt = "4"
 ComputationalResources = "0.3"
+CUDA = "5"
 Distributed = "1"
 DistributedArrays = "0.6"
 Functors = "0.4"
 InteractiveUtils = "1"
 LinearAlgebra = "1"
-OffsetArrays = "1.12"
-StaticArrays = "1.6"
+OffsetArrays = "1.14"
+StaticArrays = "1.9"
 StructArrays = "0.6"
-Unitful = "1.15"
-Unitless = "2.1"
-julia = "1.9"
+Unitful = "1.21"
+Unitless = "2.2"
+julia = "1.10"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

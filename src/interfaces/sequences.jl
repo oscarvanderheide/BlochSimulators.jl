@@ -80,21 +80,21 @@ an isochromat as output (implemented as a `FieldVector` perhaps) or state config
 matrices `Ω`.
 """
 function output_eltype(::BlochSimulator)
-    @warn "Must implement output_eltype" 
+    @warn "Must implement output_eltype"
 end
 
 """
-    output_dimensions(::BlochSimulator)
+    output_size(::BlochSimulator)
 
 For each `<:BlochSimulator`, a method should be added to this function that
-specifies the output size of the simulation for a *single* `::AbstractTissueParameters`.
+specifies the output size of the simulation for a *single* `::AbstractTissueProperties`.
 """
-function output_dimensions(::BlochSimulator)
-    @warn "Must implement output_dimensions"
+function output_size(::BlochSimulator)
+    @warn "Must implement output_size"
 end
 
 """
-    simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters) end
+    simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueProperties) end
 
 For each `<:BlochSimulator`, a method should be added to this function that
 implements the actual pulse sequence using information contained in the sequence struct
@@ -103,16 +103,16 @@ as well as GPU compatibility it is important that the implementation is type-sta
 non-allocating.
 
 # Arguments
-- `magnetization`: Pre-allocated array with `size(magnetization) = output_dimensions(sequence)` and
+- `magnetization`: Pre-allocated array with `size(magnetization) = output_size(sequence)` and
     `eltype(magnetization) = output_eltype(sequence)` to store the output of the simulation.
 - `sequence`: Sequence struct containing fields that are used to implement the actual pulse
     sequence.
 - `state`: Either an `Isochromat` or `EPGStates`, depending on which model is used.
-- `p`: Custom struct (`<:AbstractTissueParameters`) containing input parameters
+- `p`: Custom struct (`<:AbstractTissueProperties`) containing input parameters
     to the simulation (e.g. `T₁T₂`)
 
 """
-function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueParameters) 
+function simulate_magnetization!(magnetization, sequence::BlochSimulator, state, p::AbstractTissueProperties)
     @warn "Must implement simulate_magnetization!"
 end
 

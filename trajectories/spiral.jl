@@ -3,7 +3,7 @@
 ### Type definition
 
 """
-    SpiralTrajectory{T,I,U,V} <: AbstractTrajectory
+    SpiralTrajectory{T,I,U,V} <: AbstractTrajectory{T}
 
 NOT TESTED
 
@@ -16,7 +16,7 @@ NOT TESTED
 
 
 """
-struct SpiralTrajectory{T,I,U,V} <: AbstractTrajectory
+struct SpiralTrajectory{T,I,U,V} <: AbstractTrajectory{T}
     nreadouts::I
     nsamplesperreadout::I
     Δt::T # time between sample points

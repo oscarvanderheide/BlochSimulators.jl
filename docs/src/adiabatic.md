@@ -1,7 +1,8 @@
 # Adiabatic inversion
 
 ````julia
-using Pkg; Pkg.activate("docs")
+using Pkg;
+Pkg.activate("docs");
 ````
 
 In this example we demonstrate how to simulate an adiabatic inversion
@@ -13,14 +14,12 @@ using StructArrays, ComputationalResources
 using PythonPlot
 ````
 
-using KomaMRI
-
 Parameters taken from Bernstein - Handbook of MRI Pulse Sequences, p. 196
 
 ````julia
 γ = 267.52218744e6
 T = 8e-3 # s
-t = LinRange(-T/2,T/2,1000)
+t = LinRange(-T / 2, T / 2, 1000)
 Δt = first(diff(t))
 TΔf = 10 # ?
 β = 800 # rad/s
@@ -31,14 +30,14 @@ A₀ = 14e-6 # T
 Amplitude modulation
 
 ````julia
-A = @. A₀ * sech(β*t)
+A = @. A₀ * sech(β * t)
 γΔtA = γ * Δt * A
 ````
 
 Frequency modulation
 
 ````julia
-Δω = @. -μ*β*tanh(β*t)
+Δω = @. -μ * β * tanh(β * t)
 Δf = Δω / 2π
 ````
 
@@ -52,7 +51,7 @@ Set parameters
 
 ````julia
 B₀ = -2000:2000
-parameters = T₁T₂B₀.(1.0,.1, B₀)
+parameters = T₁T₂B₀.(1.0, 0.1, B₀)
 ````
 
 Perform simulations
@@ -65,10 +64,10 @@ Plot results
 
 ````julia
 figure();
-plot(B₀,m.z);
-plot(B₀,abs.(complex.(m.x,m.y)));
+plot(B₀, m.z);
+plot(B₀, abs.(complex.(m.x, m.y)));
 legend(["mz", "mxy"]);
-ylim([-1,1])
+ylim([-1, 1])
 title("Adiabatic inversion for different off-resonance values")
 ````
 

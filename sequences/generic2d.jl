@@ -10,7 +10,7 @@ for the waveforms.
 - `GR::M{T}`: Matrix with GRx, GRy and GRz values during each time interval
 - `sample::S`: Vector with Bool's to indicate the sample points
 - `Δt::V{T}`: Vector with time intervals
-- `z::V{T}`: Vector with different positions along the slice direction 
+- `z::V{T}`: Vector with different positions along the slice direction
 """
 struct Generic2D{T,V<:AbstractVector{Complex{T}},W<:AbstractVector{T},M<:AbstractMatrix{T},S} <: IsochromatSimulator{T}
     RF::V
@@ -27,16 +27,16 @@ end
 export Generic2D
 
 # Methods needed to allocate an output array of the correct size and type
-output_dimensions(sequence::Generic2D) = sum(sequence.sample)
+output_size(sequence::Generic2D) = sum(sequence.sample)
 output_eltype(sequence::Generic2D) = Isochromat{eltype(sequence.GR)}
 
-@inline function simulate_magnetization!(output, sequence::Generic2D{T}, m, (p::AbstractTissueParameters)) where T
+@inline function simulate_magnetization!(output, sequence::Generic2D{T}, m, (p::AbstractTissueProperties)) where {T}
 
     Δt = sequence.Δt
     GR = sequence.GR
     RF = sequence.RF
 
-    γ = 26753.0
+    γ = T(26753.0)
     T₁, T₂ = p.T₁, p.T₂
 
     nr_timesteps = length(Δt)
@@ -53,14 +53,14 @@ output_eltype(sequence::Generic2D) = Isochromat{eltype(sequence.GR)}
 
         for t in 1:nr_timesteps
 
-            γΔtGR = @. γ*Δt[t]*(GR[1,t], GR[2,t], GR[3,t])
-            γΔtRF = γ*Δt[t]*RF[t]
+            γΔtGR = @. γ * Δt[t] * (GR[1, t], GR[2, t], GR[3, t])
+            γΔtRF = γ * Δt[t] * RF[t]
 
             # GR, RF and B₀ induced rotation
             m = rotate(m, γΔtRF, γΔtGR, (p.x, p.y, z), Δt[t], p)
 
             # T₁ and T₂ decay, T₁ regrowth
-            E₁, E₂ = exp(-Δt[t]/T₁), exp(-Δt[t]/T₂)
+            E₁, E₂ = exp(-Δt[t] / T₁), exp(-Δt[t] / T₂)
 
             m = decay(m, E₁, E₂)
             m = regrowth(m, E₁)
