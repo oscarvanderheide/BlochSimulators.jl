@@ -16,9 +16,6 @@ This function can also be used to generate dictionaries for MR Fingerprinting pu
 
 # Returns
 - `magnetization::AbstractArray`: Array of size (output_size(sequence), length(parameters)) containing the magnetization response of the sequence for all combinations of input tissue properties.
-
-# Note
-If no `resource` is provided, the simulation is performed on the CPU in a multi-threaded fashion by default. If the `parameters` are a CuArray, the simulation is performed on the GPU. If the `parameters` are a DArray, the simulation is performed on the multiple workers.
 """
 function simulate_magnetization(
     resource::AbstractResource,
@@ -34,16 +31,35 @@ function simulate_magnetization(
     return magnetization
 end
 
+"""
+If no `resource` is provided, the simulation is performed on the CPU in a multi-threaded fashion by default.
+"""
 function simulate_magnetization(sequence, parameters)
     simulate_magnetization(CPUThreads(), sequence, parameters)
 end
 
+"""
+However, if the `parameters` are a CuArray, the simulation is performed on the GPU.
+"""
 function simulate_magnetization(sequence, parameters::CuArray)
     simulate_magnetization(CUDALibs(), gpu(sequence), parameters)
 end
 
+"""
+If the `parameters` are a DArray, the simulation is performed on the multiple workers.
+"""
 function simulate_magnetization(sequence, parameters::DArray)
     simulate_magnetization(CPUProcesses(), sequence, parameters)
+end
+
+"""
+If the tissue properties for a single voxel are provided only, the simulation is performed on the CPU in a single-threaded fashion.
+"""
+function simulate_magnetization(sequence, tissue_properties::AbstractTissueProperties)
+    # Assemble "SimulationParameters" 
+    parameters = StructVector([tissue_properties])
+    # Perform simulation for this voxel on CPU
+    simulate_magnetization(CPU1(), sequence, parameters)
 end
 
 """
