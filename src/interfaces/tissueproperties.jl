@@ -8,6 +8,7 @@ Abstract type for custom structs that hold tissue properties used for a simulati
 - `T₂::T`: T₂ relaxation parameters of a voxel
 - `B₁::T`: Scaling factor for effective B₁ excitation field within a voxel
 - `B₀::T`: Off-resonance with respect to main magnetic field within a voxel
+- `D::T`: Diffusion coefficient within a voxel (in this context it is unitless: "the amount of dispersion per TR at state=1")
 - `ρˣ::T`: Real part of proton density within a voxel
 - `ρʸ::T`: Imaginary part of proton density within a voxel
 
@@ -40,6 +41,25 @@ struct T₁T₂B₁{T} <: AbstractTissueProperties{3,T}
 end
 
 """
+    T₁T₂D{T} <: AbstractTissueProperties{3,T}
+"""
+struct T₁T₂D{T} <: AbstractTissueProperties{3,T}
+    T₁::T
+    T₂::T
+    D::T
+end
+
+"""
+    T₁T₂B₁D{T} <: AbstractTissueProperties{4,T}
+"""
+struct T₁T₂B₁D{T} <: AbstractTissueProperties{4,T}
+    T₁::T
+    T₂::T
+    B₁::T
+    D::T
+end
+
+"""
     T₁T₂B₀{T} <: AbstractTissueProperties{2,T}
 """
 struct T₁T₂B₀{T} <: AbstractTissueProperties{3,T}
@@ -56,6 +76,17 @@ struct T₁T₂B₁B₀{T} <: AbstractTissueProperties{4,T}
     T₂::T
     B₁::T
     B₀::T
+end
+
+"""
+    T₁T₂B₁B₀D{T} <: AbstractTissueProperties{5,T}
+"""
+struct T₁T₂B₁B₀D{T} <: AbstractTissueProperties{5,T}
+    T₁::T
+    T₂::T
+    B₁::T
+    B₀::T
+    D::T
 end
 
 # For each subtype of AbstractTissueProperties created above, we use meta-programming to create
@@ -103,10 +134,12 @@ end
 # Set default value to false:
 hasB₁(::AbstractTissueProperties) = false
 hasB₀(::AbstractTissueProperties) = false
+hasD(::AbstractTissueProperties) = false
 
 for P in subtypes(AbstractTissueProperties)
     @eval hasB₁(::$(P)) = $(:B₁ ∈ fieldnames(P))
     @eval hasB₀(::$(P)) = $(:B₀ ∈ fieldnames(P))
+    @eval hasD(::$(P)) =  $(:D ∈ fieldnames(P))
 end
 
 # Programatically export all subtypes of AbstractTissueProperties
@@ -125,10 +158,16 @@ function get_nonlinear_part(p::Type{<:AbstractTissueProperties})
             return T₁T₂
         elseif p <: T₁T₂B₁ρˣρʸ
             return T₁T₂B₁
+        elseif p <: T₁T₂Dρˣρʸ
+            return T₁T₂D
+        elseif p <: T₁T₂B₁Dρˣρʸ
+            return T₁T₂B₁D
         elseif p <: T₁T₂B₀ρˣρʸ
             return T₁T₂B₀
         elseif p <: T₁T₂B₁B₀ρˣρʸ
             return T₁T₂B₁B₀
+        elseif p <: T₁T₂B₁B₀Dρˣρʸ
+            return T₁T₂B₁B₀D
         else
             error("Unknown parameter type: $p")
         end
