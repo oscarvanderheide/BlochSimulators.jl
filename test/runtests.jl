@@ -754,3 +754,22 @@ end
     Δ = 0
     @test_throws ErrorException BlochSimulators._finite_difference_quotient!(Δm, m, Δ)
 end
+
+@testset "Test single voxel simulations" begin
+
+    # Methods have been added that accept a single `<:AbstractTissueParameters` to perform simulations in a single voxel. The results should be the same as if the tissue properties are wrapped in a `StructVector` and the methods for batch simulations are used.
+    sequence = FISP2D(10)
+    tissue_properties = T₁T₂B₁B₀(1.0, 0.1, 0.9, 10.0)
+    parameters = StructVector([tissue_properties])
+
+    m₁ = simulate_magnetization(sequence, tissue_properties)
+    m₂ = simulate_magnetization(sequence, parameters)
+
+    @test m₁ == m₂
+
+    m₁,∂m₁ = simulate_derivatives_finite_difference(sequence, tissue_properties)
+    m₂,∂m₂ = simulate_derivatives_finite_difference(sequence, parameters)
+
+    @test m₁ == m₂
+    @test ∂m₁ == ∂m₂
+end

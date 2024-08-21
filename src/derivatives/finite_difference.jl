@@ -101,6 +101,20 @@ function simulate_derivatives_finite_difference(
 end
 
 """
+If the tissue properties for a single voxel are provided only, the simulation is performed on the CPU in a single-threaded fashion.
+"""
+function simulate_derivatives_finite_difference(
+    sequence::BlochSimulator,
+    tissue_properties::AbstractTissueProperties,
+    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES
+)
+    # Assemble "SimulationParameters" 
+    parameters = StructVector([tissue_properties])
+
+    return simulate_derivatives_finite_difference(sequence, parameters, stepsizes)
+end
+
+"""
     _validate_requested_derivatives, parameters, stepsizes)
 
 Check that the tissue properties we want to compute partial derivatives for are a subset of the tissue properties used in the simulations. Also check that a stepsize is available for each requested derivative.
