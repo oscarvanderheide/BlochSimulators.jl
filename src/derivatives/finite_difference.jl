@@ -35,7 +35,7 @@ function simulate_derivatives_finite_difference(
     echos::AbstractMatrix{<:Complex},
     sequence::BlochSimulator,
     parameters::StructVector{<:AbstractTissueProperties},
-    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES
+    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES_FINITE_DIFFERENCE
 )
 
     # Check consistency of "context"
@@ -86,13 +86,13 @@ If only a `sequence` and `parameters` are provided, calculate the `echos` and th
 function simulate_derivatives_finite_difference(
     sequence::BlochSimulator,
     parameters::StructVector{<:AbstractTissueProperties},
-    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES
+    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES_FINITE_DIFFERENCE
 )
     # Calculate echos
     echos = simulate_magnetization(sequence, parameters)
 
     # Extract names of the non-linear tissue properties
-    nonlinear_propnames = propertynames(get_nonlinear_part(eltype(parameters)))
+    nonlinear_propnames = fieldnames(get_nonlinear_part(eltype(parameters)))
 
     # Calculate partial derivatives of echos w.r.t. all tissue properties
     ∂echos = simulate_derivatives_finite_difference(nonlinear_propnames, echos, sequence, parameters, stepsizes)
@@ -106,7 +106,7 @@ If the tissue properties for a single voxel are provided only, the simulation is
 function simulate_derivatives_finite_difference(
     sequence::BlochSimulator,
     tissue_properties::AbstractTissueProperties,
-    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES
+    stepsizes::T₁T₂B₁B₀=DEFAULT_STEPSIZES_FINITE_DIFFERENCE
 )
     # Assemble "SimulationParameters" 
     parameters = StructVector([tissue_properties])
