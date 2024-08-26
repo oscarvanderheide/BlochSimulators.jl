@@ -8,7 +8,8 @@ Abstract type for custom structs that hold tissue properties used for a simulati
 - `T₂::T`: T₂ relaxation parameters of a voxel
 - `B₁::T`: Scaling factor for effective B₁ excitation field within a voxel
 - `B₀::T`: Off-resonance with respect to main magnetic field within a voxel
-- `D::T`: Diffusion coefficient within a voxel (in this context it is unitless: "the amount of dispersion per TR at state=1")
+- `D::T`:  Diffusion value: the TR/TD as used in https://doi.org/10.1002/nbm.5044 
+            (in this context it is unitless: "the amount of dispersion per TR at state=1")
 - `ρˣ::T`: Real part of proton density within a voxel
 - `ρʸ::T`: Imaginary part of proton density within a voxel
 
@@ -205,14 +206,20 @@ end
 
 # Define aliases for the tissue parameter types that do not use unicode characters such that, for example, `@parameters T1 T2 B0` is equivalent to `@parameters T₁ T₂ B₀`. This makes it easier for users of the package to generate tissue parameter arrays without having to type unicode characters.
 const T1T2 = T₁T₂
+const T1T2D = T₁T₂D
 const T1T2B1 = T₁T₂B₁
+const T1T2B1D = T₁T₂B₁D
 const T1T2B0 = T₁T₂B₀
 const T1T2B1B0 = T₁T₂B₁B₀
+const T1T2B1B0D = T₁T₂B₁B₀D
 
 const T1T2PDxPDy = T₁T₂ρˣρʸ
+const T1T2DPDxPDy = T₁T₂Dρˣρʸ
 const T1T2B1PDxPDy = T₁T₂B₁ρˣρʸ
+const T1T2B1DPDxPDy = T₁T₂B₁Dρˣρʸ
 const T1T2B0PDxPDy = T₁T₂B₀ρˣρʸ
 const T1T2B1B0PDxPDy = T₁T₂B₁B₀ρˣρʸ
+const T1T2B1B0DPDxPDy = T₁T₂B₁B₀Dρˣρʸ
 
 # To perform simulations for multiple voxels, we store the tissue properties in a `StructArray` which we refer to as the `SimulationParameters`.
 const SimulationParameters = StructArray{<:AbstractTissueProperties}
