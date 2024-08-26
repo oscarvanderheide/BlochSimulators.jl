@@ -608,7 +608,7 @@ end
     if CUDA.has_cuda_gpu()
         parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.001, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
         d_nonzero_gpu = simulate_magnetization(CUDALibs(), gpu(sequence), gpu(parameters)) 
-        rms_diff = sqrt(sum(abs2.(d_nonzero_gpu - d_nonzero)) / length(d_no))
+        rms_diff = sqrt(sum(abs2.(d_nonzero_gpu - gpu(d_nonzero))) / length(d_no))
   
         @test rms_diff < 1e-8
     end
