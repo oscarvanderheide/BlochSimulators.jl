@@ -582,8 +582,9 @@ end
     
     nTR = 1000
     nvoxels = 1000
-    sequence = FISP2D(nTR)
-    sequence.RF_train = [30+25*sin(2π*4.0*t/nTR+1*im) for t = 1:nTR]
+    sequence      = FISP2D(nTR)
+
+    sequence.RF_train .= complex.([30+25*sin(2π*4.0*t/nTR) for t = 1:nTR])
 
     # simulate magnetization without diffusion
     parameters = [T₁T₂ρˣρʸ(1.0, 0.1, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
