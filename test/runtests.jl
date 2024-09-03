@@ -16,6 +16,63 @@ function make_T₁T₂_structarray(nvoxels)
     return @parameters T₁ T₂
 end
 
+
+@testset "Test diffusion code" begin
+    
+    nTR = 1000
+    nvoxels = 1000
+    sequence      = FISP2D(nTR)
+
+    sequence.RF_train .= complex.([30+25*sin(2π*4.0*t/nTR) for t = 1:nTR])
+
+    # simulate magnetization without diffusion
+    parameters = [T₁T₂ρˣρʸ(1.0, 0.1, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
+    d_no   = simulate_magnetization(CPU1(), sequence, parameters)
+
+    # simulate magnetization with D=0
+    parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.0, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
+    d_zero = simulate_magnetization(CPU1(), sequence, parameters)   
+
+    parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.001, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
+    d_nonzero = simulate_magnetization(CPU1(), sequence, parameters)   
+
+    # test diffusion simulation to not affect result when D=0
+    rms_diff = sqrt(sum(abs2.(d_no - d_zero)) / length(d_no))
+    @test rms_diff < 1e-8
+
+    # test diffusion simulation to affect result when D>0   
+    rms_diff = sqrt(sum(abs2.(d_zero - d_nonzero)) / length(d_no))
+    @test rms_diff > 1e-3
+
+    if CUDA.has_cuda_gpu()
+        parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.001, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
+        d_nonzero_gpu = simulate_magnetization(CUDALibs(), gpu(sequence), gpu(parameters)) 
+        rms_diff = sqrt(sum(abs2.(d_nonzero_gpu - gpu(d_nonzero))) / length(d_no))
+  
+        @test rms_diff < 1e-8
+    end
+end
+
+@testset "Test operator functions for EPG model" begin
+    Ω = @MMatrix ones(ComplexF64, 3, 20)
+    Ω_in = copy(Ω)
+
+    # with no diffusion, diffuse!() has no effect
+    BlochSimulators.diffuse!(Ω, 0.0)
+    rms_diff = sqrt(sum(abs2.(Ω - Ω_in)) / length(Ω))
+    @test rms_diff < 1e-8
+
+    # with diffusion, diffuse!() reduces the states
+    BlochSimulators.diffuse!(Ω, 0.1)
+    nonzero_in = abs.(Ω_in[:, 2:end])
+    nonzero_out = abs.(Ω[:, 2:end])
+    @test all(nonzero_out .< nonzero_in)
+
+    # The effect on high states is expected to be larger than the effect on low states
+    effect_on_20 = sum(abs2.(Ω_in[:, 20])) - sum(abs2.(Ω[:, 20]))
+    effect_on_2  = sum(abs2.(Ω_in[:, 2])) - sum(abs2.(Ω[:, 2]))
+    @test effect_on_20 > effect_on_2
+end
 # test some individual functions in BlochSimulators
 @testset "Test operator functions for isochromat model" begin
 
@@ -578,38 +635,5 @@ end
 
 end
 
-@testset "Test diffusion code" begin
-    
-    nTR = 1000
-    nvoxels = 1000
-    sequence      = FISP2D(nTR)
 
-    sequence.RF_train .= complex.([30+25*sin(2π*4.0*t/nTR) for t = 1:nTR])
 
-    # simulate magnetization without diffusion
-    parameters = [T₁T₂ρˣρʸ(1.0, 0.1, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
-    d_no   = simulate_magnetization(CPU1(), sequence, parameters)
-
-    # simulate magnetization with D=0
-    parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.0, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
-    d_zero = simulate_magnetization(CPU1(), sequence, parameters)   
-
-    parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.001, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
-    d_nonzero = simulate_magnetization(CPU1(), sequence, parameters)   
-
-    # test diffusion simulation to not affect result when D=0
-    rms_diff = sqrt(sum(abs2.(d_no - d_zero)) / length(d_no))
-    @test rms_diff < 1e-8
-
-    # test diffusion simulation to affect result when D>0   
-    rms_diff = sqrt(sum(abs2.(d_zero - d_nonzero)) / length(d_no))
-    @test rms_diff > 1e-3
-
-    if CUDA.has_cuda_gpu()
-        parameters = [T₁T₂Dρˣρʸ(1.0, 0.1, 0.001, 1.0, 0.0) for _ = 1:nvoxels] |> StructArray 
-        d_nonzero_gpu = simulate_magnetization(CUDALibs(), gpu(sequence), gpu(parameters)) 
-        rms_diff = sqrt(sum(abs2.(d_nonzero_gpu - gpu(d_nonzero))) / length(d_no))
-  
-        @test rms_diff < 1e-8
-    end
-end
