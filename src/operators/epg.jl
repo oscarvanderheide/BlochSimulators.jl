@@ -199,13 +199,13 @@ end
 diffusion decay according to state number.
 """
 @inline function diffuse!(Ω::EPGStates, D)
-    for state in axes(Ω,2)
-        bᵀD = (((state-1)+0.5)^2+1.0/12.0)*D
-        bᴸD = (((state-1)    )^2         )*D
+    for state in 0:size(Ω, 2)-1
+        bᵀD = ((state+0.5)^2+1.0/12.0)*D
+        bᴸD = (state^2)*D
         expbᵀD = exp(-bᵀD)
-        @inbounds Ω[1,state] *= expbᵀD
-        @inbounds Ω[2,state] *= expbᵀD
-        @inbounds Ω[3,state] *= exp(-bᴸD)
+        F₊(Ω)[state] *= expbᵀD
+        F̄₋(Ω)[state] *= expbᵀD
+        Z(Ω)[state]  *= exp(-bᴸD)
     end
 end
 
