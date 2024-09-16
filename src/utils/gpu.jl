@@ -25,8 +25,8 @@ _isbitsarray(x) = false
 _isleaf(x) = _isbitsarray(x) || isleaf(x)
 
 # Convert underlying arrays of a `StructArray` to `CuArray`s while keeping the `StructArray` wrapper intact
-gpu(x::StructArray) = StructArray{eltype(x)}(gpu(StructArrays.components(x)))
-gpu(x::AbstractVector{<:StructArray}) = [gpu(x[i]) for i in eachindex(x)]
+_gpu(x::StructArray) = StructArray{eltype(x)}(gpu(StructArrays.components(x)))
+_gpu(x::AbstractVector{<:StructArray}) = [gpu(x[i]) for i in eachindex(x)]
 
 export gpu
 
