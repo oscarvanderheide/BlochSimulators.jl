@@ -20,11 +20,11 @@ Unitless = "c904d999-9673-4878-a3dd-e3ef1851788a"
 
 [compat]
 Adapt = "4"
-ComputationalResources = "0.3"
 CUDA = "5"
+ComputationalResources = "0.3"
 Distributed = "1"
 DistributedArrays = "0.6"
-Functors = "0.4"
+Functors = "0.4, 0.5"
 InteractiveUtils = "1"
 LinearAlgebra = "1"
 OffsetArrays = "1"
