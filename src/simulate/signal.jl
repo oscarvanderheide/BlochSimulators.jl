@@ -1,5 +1,5 @@
 """
-    simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
+    simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities)
 
 Simulate the MR signal at timepoint `t` from coil `i` as: `sᵢ(t) = ∑ⱼ cᵢⱼρⱼmⱼ(t)`,
 where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρⱼ` is the proton density of voxel `j` and `mⱼ(t)` the (normalized) transverse magnetization in voxel `j` obtained through Bloch simulations.
