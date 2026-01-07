@@ -1,29 +1,39 @@
 """
     AbstractTissueProperties{N,T} <: FieldVector{N,T}
 
-Abstract type for custom structs that hold tissue properties used for a simulation within one voxel. For simulations, `SimulationParameters`s are used that can be assembled with the `@parameters` macro.
+Abstract type for custom structs that hold tissue properties used for a
+simulation within one voxel. For simulations, `SimulationParameters`s are used
+that can be assembled with the `@parameters` macro.
 
 # Possible fields:
-- `T₁::T`: T₁ relaxation parameters of a voxel
-- `T₂::T`: T₂ relaxation parameters of a voxel
-- `B₁::T`: Scaling factor for effective B₁ excitation field within a voxel
-- `B₀::T`: Off-resonance with respect to main magnetic field within a voxel
-- `ρˣ::T`: Real part of proton density within a voxel
-- `ρʸ::T`: Imaginary part of proton density within a voxel
+- `T₁::T`: Longitudinal relaxation time constant (in seconds).
+- `T₂::T`: Transverse relaxation time constant (in seconds).
+- `B₁::T`: Relative transmit B₁ field scaling factor (unitless).
+- `B₀::T`: Off-resonance frequency (in Hz).
+- `ρˣ::T`: Real part of proton density or equilibrium magnetization M₀
+  (arbitrary units).
+- `ρʸ::T`: Imaginary part of proton density or equilibrium magnetization M₀
+  (arbitrary units).
 
 # Implementation details:
-The structs are subtypes of FieldVector, which is a StaticVector with named fields
-(see the documentation of StaticArrays.jl). There are three reasons for letting the structs
-be subtypes of FieldVector:
-1) FieldVectors/StaticVectors have sizes that are known at compile time. This is beneficial for performance reasons
+The structs are subtypes of FieldVector, which is a StaticVector with named
+fields (see the documentation of StaticArrays.jl). There are three reasons for
+letting the structs be subtypes of FieldVector:
+1) FieldVectors/StaticVectors have sizes that are known at compile time. This is
+   beneficial for performance reasons
 2) The named fields improve readability of the code (e.g. `p.B₁` vs `p[3]`)
-3) Linear algebra operations can be performed on instances of the structs. This allows, for example, subtraction (without having to manually define methods) and that is useful for comparing parameter maps.
+3) Linear algebra operations can be performed on instances of the structs. This
+   allows, for example, subtraction (without having to manually define methods)
+   and that is useful for comparing parameter maps.
 """
 abstract type AbstractTissueProperties{N,T} <: FieldVector{N,T} end
 
 # Define different TissueParameters types
 """
     T₁T₂{T} <: AbstractTissueProperties{2,T}
+
+Tissue properties struct containing `T₁` and `T₂`. Units are defined in
+[`AbstractTissueProperties`](@ref).
 """
 struct T₁T₂{T} <: AbstractTissueProperties{2,T}
     T₁::T
@@ -32,6 +42,9 @@ end
 
 """
     T₁T₂B₁{T} <: AbstractTissueProperties{3,T}
+
+Tissue properties struct containing `T₁`, `T₂`, and `B₁`. Units are defined in
+[`AbstractTissueProperties`](@ref).
 """
 struct T₁T₂B₁{T} <: AbstractTissueProperties{3,T}
     T₁::T
@@ -40,7 +53,9 @@ struct T₁T₂B₁{T} <: AbstractTissueProperties{3,T}
 end
 
 """
-    T₁T₂B₀{T} <: AbstractTissueProperties{2,T}
+    T₁T₂B₀{T} <: AbstractTissueProperties{3,T}
+
+Tissue properties struct containing `T₁`, `T₂`, and `B₀`. Units are defined in [`AbstractTissueProperties`](@ref).
 """
 struct T₁T₂B₀{T} <: AbstractTissueProperties{3,T}
     T₁::T
@@ -50,6 +65,8 @@ end
 
 """
     T₁T₂B₁B₀{T} <: AbstractTissueProperties{4,T}
+
+Tissue properties struct containing `T₁`, `T₂`, `B₁`, and `B₀`. Units are defined in [`AbstractTissueProperties`](@ref).
 """
 struct T₁T₂B₁B₀{T} <: AbstractTissueProperties{4,T}
     T₁::T
@@ -58,8 +75,8 @@ struct T₁T₂B₁B₀{T} <: AbstractTissueProperties{4,T}
     B₀::T
 end
 
-# For each subtype of AbstractTissueProperties created above, we use meta-programming to create
-# additional types that also hold proton density (ρˣ and ρʸ)
+# For each subtype of AbstractTissueProperties created above, we use meta-programming to
+# create additional types that also hold proton density (ρˣ and ρʸ).
 #
 # For example, given T₁T₂ <: AbstractTissueProperties, we automatically define:
 #
@@ -83,10 +100,14 @@ for P in subtypes(AbstractTissueProperties)
     fnames_typed_ρˣρʸ = [:($(fn)::T) for fn ∈ fnames_ρˣρʸ]
 
     N = length(fieldnames(P))
+    # Format the field names string for the docstring outside the @eval block
+    fnames_str = join(map(fn -> "`$fn`", fnames_ρˣρʸ), ", ")
 
     @eval begin
         """
             $($(structname_ρˣρʸ)){T} <: AbstractTissueProperties{$($(N+2)),T}
+
+        Tissue properties struct containing $(fnames_str). Units are defined in [`AbstractTissueProperties`](@ref).
         """
         struct $(structname_ρˣρʸ){T} <: AbstractTissueProperties{$(N + 2),T}
             $(fnames_typed_ρˣρʸ...)

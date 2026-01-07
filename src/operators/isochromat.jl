@@ -7,9 +7,8 @@
         z::T
     end
 
-Holds the x,y,z components of a spin isochromat in a FieldVector,
-which is a `StaticVector` (from the package `StaticArrays`) with custom
-fieldnames.
+Holds the x,y,z components of a spin isochromat in a FieldVector, which is a `StaticVector`
+(from the package `StaticArrays`) with custom fieldnames.
 """
 struct Isochromat{T<:Real} <: FieldVector{3,T}
     x::T
@@ -17,8 +16,8 @@ struct Isochromat{T<:Real} <: FieldVector{3,T}
     z::T
 end
 
-# Makes sure that that operations with/on Isochromats return Isochromats,
-# see FieldVector example from StaticArrays documentation.
+# Ensures that operations with/on Isochromats return Isochromats. See the FieldVector
+# example from the StaticArrays documentation.
 StaticArrays.similar_type(::Type{Isochromat{T}}, ::Type{T}, s::Size{(3,)}) where {T<:Real} = Isochromat{T}
 
 ### METHODS
@@ -30,7 +29,8 @@ StaticArrays.similar_type(::Type{Isochromat{T}}, ::Type{T}, s::Size{(3,)}) where
 
 Initialize a spin isochromat to be used throughout a simulation of the sequence.
 
-This may seem redundant but to is necessary to share the same programming interface with `EPGSimulators`.
+This may seem redundant but to is necessary to share the same programming interface with
+`EPGSimulators`.
 """
 @inline function initialize_states(::AbstractResource, ::IsochromatSimulator{T}) where {T}
     return Isochromat{T}(0, 0, 0)
@@ -52,9 +52,25 @@ end
 # Rotate
 
 """
-    rotate(m::Isochromat{T}, γΔtRF::Complex, γΔtGR::Tuple, (x,y,z), Δt, p::AbstractTissueProperties, Δω = zero(T)) where T
+    rotate(m::Isochromat{T}, γΔtRF, γΔtGR, r, Δt, p::AbstractTissueProperties, ΔtΔω=zero(T)) where T
 
-RF, gradient and/or ΔB₀ induced rotation of Isochromat computed using Rodrigues rotation formula (https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula).
+RF, gradient and/or ΔB₀ induced rotation of Isochromat computed using Rodrigues' rotation
+formula.
+
+# Arguments
+- `m`: Input isochromat state.
+- `γΔtRF`: Complex value representing RF pulse effect (radians). `B₁` scaling from `p` is
+  applied internally if `hasB₁(p)`.
+- `γΔtGR`: Tuple/Vector representing gradient effect `γ * G * Δt` (radians/centimeter).
+- `r`: Position vector `(x,y,z)` [cm].
+- `Δt`: Time step duration (seconds).
+- `p`: Tissue properties (`AbstractTissueProperties`). `B₀` effects from `p` are applied
+  internally if `hasB₀(p)`.
+- `ΔtΔω`: Additional off-resonance phase accumulated during `Δt` (radians). Often `Δt * Δω`,
+  where `Δω` is in rad/s.
+
+# Returns
+- Rotated isochromat state.
 """
 @inline function rotate(m::Isochromat{T}, γΔtRF, γΔtGR, r, Δt, p::AbstractTissueProperties, ΔtΔω=zero(T)) where {T}
 
@@ -86,8 +102,8 @@ end
 """
     rotate(m::Isochromat, γΔtGRz, z, Δt, p::AbstractTissueProperties)
 
-Rotation of Isochromat without RF (so around z-axis only) due to gradients and B0
-(i.e. refocussing slice select gradient).
+Rotation of Isochromat without RF (so around z-axis only) due to gradients and B0 (i.e.
+refocussing slice select gradient).
 """
 @inline function rotate(m::Isochromat, γΔtGR, r, Δt, p::AbstractTissueProperties)
     # Determine rotation angle θ
@@ -103,7 +119,8 @@ end
 """
     decay(m::Isochromat{T}, E₁, E₂) where T
 
-Apply T₂ decay to transverse component and T₁ decay to longitudinal component of `Isochromat`.
+Apply T₂ decay to transverse component and T₁ decay to longitudinal component of
+`Isochromat`.
 """
 @inline function decay(m::Isochromat{T}, E₁, E₂) where {T}
     return m .* Isochromat{T}(E₂, E₂, E₁)
@@ -125,7 +142,8 @@ end
 """
     invert(m::Isochromat{T}, p::AbstractTissueProperties) where T
 
-Invert z-component of `Isochromat` (assuming spoiled transverse magnetization so xy-component zero).
+Invert z-component of `Isochromat` (assuming spoiled transverse magnetization so
+xy-component zero).
 """
 @inline function invert(m::Isochromat{T}, p::AbstractTissueProperties) where {T}
     # Determine rotation angle θ
@@ -146,8 +164,8 @@ Invert `Isochromat` with B₁ insenstive (i.e. adiabatic) inversion pulse
 """
     sample!(output, index::Union{Integer,CartesianIndex}, m::Isochromat)
 
-Sample transverse magnetization from `Isochromat`. The "+=" is needed
-for 2D sequences where slice profile is taken into account.
+Sample transverse magnetization from `Isochromat`. The "+=" is needed for 2D sequences where
+slice profile is taken into account.
 """
 @inline function sample_transverse!(output, index::Union{Integer,CartesianIndex}, m::Isochromat)
     @inbounds output[index] += complex(m.x, m.y)
@@ -156,8 +174,8 @@ end
 """
     sample_xyz!(output, index::Union{Integer,CartesianIndex}, m::Isochromat)
 
-Sample m.x, m.y and m.z components from `Isochromat`. The "+=" is needed
-for 2D sequences where slice profile is taken into account.
+Sample m.x, m.y and m.z components from `Isochromat`. The "+=" is needed for 2D sequences
+where slice profile is taken into account.
 """
 @inline function sample_xyz!(output::AbstractArray{<:S}, index::Union{Integer,CartesianIndex}, m::Isochromat) where {S}
     @inbounds output[index] += S(m.x, m.y, m.z)

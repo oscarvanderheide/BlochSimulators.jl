@@ -1,19 +1,28 @@
 """
     simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities)
 
-Simulate the MR signal at timepoint `t` from coil `i` as: `sᵢ(t) = ∑ⱼ cᵢⱼρⱼmⱼ(t)`,
-where `cᵢⱼ`is the coil sensitivity of coil `i` at position of voxel `j`, `ρⱼ` is the proton density of voxel `j` and `mⱼ(t)` the (normalized) transverse magnetization in voxel `j` obtained through Bloch simulations.
+Simulate the MR signal at timepoint `t` from coil `i` as: `sᵢ(t) = ∑ⱼ cᵢⱼρⱼmⱼ(t)`, where
+`cᵢⱼ` is the coil sensitivity of coil `i` at the position of voxel `j`, `ρⱼ` is the proton
+density of voxel `j`, and `mⱼ(t)` is the (normalized) transverse magnetization in voxel `j`
+obtained through Bloch simulations.
 
 # Arguments
-- `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or `CUDALibs()`
+- `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or
+  `CUDALibs()`
 - `sequence::BlochSimulator`: Custom sequence struct
-- `parameters::SimulationParameters`: Array with tissue properties for each voxel
+- `parameters::SimulationParameters`: Array (typically a `StructArray`) containing
+  [`AbstractTissueProperties`](@ref) for each voxel. **Must** include proton density fields
+  (`ρˣ`, `ρʸ`). Ensure tissue properties (like `T₁`, `T₂`, `B₀`) use the units specified in
+  the `AbstractTissueProperties` docstring (e.g., seconds for relaxation times, Hz for
+  off-resonance).
 - `trajectory::AbstractTrajectory`: Custom trajectory struct
 - `coordinates::StructArray{<:Coordinates}`: Array with spatial coordinates for each voxel
-- `coil_sensitivities::AbstractMatrix`: Sensitivity of coil `j` in voxel `v` is given by `coil_sensitivities[v,j]`
+- `coil_sensitivities::AbstractMatrix`: Sensitivity of coil `j` in voxel `v` is given by
+  `coil_sensitivities[v,j]`
 
 # Returns
-- `signal::AbstractArray{<:Complex}`: Simulated MR signal for the `sequence` and `trajectory`. The array is of size (# samples per readout, # readouts, # coils).
+- `signal::AbstractArray{<:Complex}`: Simulated MR signal for the `sequence` and
+  `trajectory`. The array is of size (# samples per readout, # readouts, # coils).
 """
 function simulate_signal(
     resource::AbstractResource,
@@ -43,15 +52,26 @@ end
 """
     magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Allocates memory for the signal and computes the signal for each coil separately using the `_signal_per_coil!` function.
+Allocates memory for the signal and computes the signal for each coil separately using the
+`_signal_per_coil!` function.
 
 # Implementation details
-The `_signal_per_coil!` function has different implementations depending on the computational resources (i.e. the type of `resource`). The default implementations loop over all time points and compute the volume integral of the transverse magnetization in each voxel for each time point separately. This loop order is not necessarily optimal (and performance may be) across all trajectories and computational resources. If a better implementation is available, add new methods to this function for those specific combinations of resources and trajectories.
+The `_signal_per_coil!` function has different implementations depending on the
+computational resources (i.e. the type of `resource`). The default implementations loop over
+all time points and compute the volume integral of the transverse magnetization in each
+voxel for each time point separately. This loop order is not necessarily optimal (and
+performance may be) across all trajectories and computational resources. If a better
+implementation is available, add new methods to this function for those specific
+combinations of resources and trajectories.
 
-The "voxels" are assumed to be distributed over the workers. Each worker computes performs a volume integral over the voxels that it owns only (for all time points) using the CPU1() code. The results are then summed up across all workers.
+The "voxels" are assumed to be distributed over the workers. Each worker computes performs a
+volume integral over the voxels that it owns only (for all time points) using the CPU1()
+code. The results are then summed up across all workers.
 
 # Note
-When using multiple CPU's, the "voxels" are distributed over the workers. Each worker computes the signal for its own voxels in parallel and the results are summed up across all workers.
+When using multiple CPU's, the "voxels" are distributed over the workers. Each worker
+computes the signal for its own voxels in parallel and the results are summed up across all
+workers.
 """
 function magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
@@ -96,7 +116,10 @@ end
 """
     _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-Compute the signal for a given coil by calculating a volume integral of the transverse magnetization in each voxel for each time point separately (using the `signal_at_time_point!` function). Each time point is computed in parallel for multi-threaded CPU computation and on the GPU for CUDA computation.
+Compute the signal for a given coil by calculating a volume integral of the transverse
+magnetization in each voxel for each time point separately (using the
+`signal_at_time_point!` function). Each time point is computed in parallel for
+multi-threaded CPU computation and on the GPU for CUDA computation.
 """
 function _signal_per_coil!(signal, resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
     error("This method for _signal_per_coil! should never be called. It's only there for the docstring.")
@@ -136,14 +159,15 @@ end
 """
     signal_at_time_point!(signal, time, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
 
-If `to_sample_point` has been defined for the provided trajectory, this (generic but not optimized)
-function computes the signal at timepoint `time_point` for all receive coils. It does so by computing
-the readout- and sample indices for the given `time_point`, reading in the magnetization at echo
-time of the `r`-th readout, using `to_sample_point` to compute the magnetization at the `s`-th sample
-index, and then it integrates over all voxels (while scaling the magnetization with the proper coil
-sensitivity and proton density).
+If `to_sample_point` has been defined for the provided trajectory, this (generic but not
+optimized) function computes the signal at timepoint `time_point` for all receive coils. It
+does so by computing the readout- and sample indices for the given `time_point`, reading in
+the magnetization at echo time of the `r`-th readout, using `to_sample_point` to compute the
+magnetization at the `s`-th sample index, and then it integrates over all voxels (while
+scaling the magnetization with the proper coil sensitivity and proton density).
 
-Better performance can likely be achieved by incorporating more trajectory-specific information together with different loop orders.
+Better performance can likely be achieved by incorporating more trajectory-specific
+information together with different loop orders.
 """
 
 @inline function signal_at_time_point!(signal, time_point, magnetization, parameters, trajectory, coordinates, coil_sensitivities)
@@ -169,8 +193,8 @@ Better performance can likely be achieved by incorporating more trajectory-speci
         @inbounds xyz = coordinates[voxel]
         # compute magnetization at s-th sample of r-th readout
         mₛ = to_sample_point(m, trajectory, readout, sample, xyz, p)
-        # add magnetization from this voxel, scaled with proton density
-        # and coil sensitivity, to signal accumulator s
+        # add magnetization from this voxel, scaled with proton density and coil
+        # sensitivity, to signal accumulator s
         ρ = complex(p.ρˣ, p.ρʸ)
         s += mₛ * (ρ * c)
     end
@@ -221,7 +245,10 @@ end
 """
     simulate_signal(sequence, partitioned_parameters::AbstractVector{<:SimulationParameters})
 
-In situations where the number of voxels is too large to store the intermediate `magnetization` array, the signal can be calculated in batches: the voxels are divided (by the user) into partitions and the signal is calculated for each partition separately. The final signal is the sum of the signals from all partitions.
+In situations where the number of voxels is too large to store the intermediate
+`magnetization` array, the signal can be calculated in batches: the voxels are divided (by
+the user) into partitions and the signal is calculated for each partition separately. The
+final signal is the sum of the signals from all partitions.
 """
 function simulate_signal(
     resource::AbstractResource,

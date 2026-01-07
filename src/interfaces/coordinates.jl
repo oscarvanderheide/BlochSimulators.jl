@@ -1,12 +1,14 @@
 """
     Coordinates{T<:Real}
 
-Basic type that holds the spatial coordinates of a voxel. Note that when performing signal simulations, `StructArray{<:Coordinates}`s are used to store the coordinates of all voxels. Such arrays are created using the `make_coordinates`.
+Basic type that holds the spatial coordinates of a voxel. Note that when performing
+signal simulations, `StructArray{<:Coordinates}`s are used to store the coordinates of
+all voxels. Such arrays are created using the `make_coordinates` function.
 
 # Fields
-- `x::T`: Position of voxel along the x direction
-- `y::T`: Position of voxel along the y direction
-- `z::T`: Position of voxel along the z direction (not used for 2D simulations)
+- `x::T`: Position of voxel along the x direction [cm].
+- `y::T`: Position of voxel along the y direction [cm].
+- `z::T`: Position of voxel along the z direction [cm].
 """
 struct Coordinates{T<:Real}
     x::T
@@ -24,9 +26,9 @@ end
 Create a 3D meshgrid of Coordinates from arrays `x`, `y`, and `z` and return it as a StructArray.
 
 # Arguments
-- `x::T`: Array of x-coordinates per voxel.
-- `y::T`: Array of y-coordinates per voxel.
-- `z::T`: Array of z-coordinates per voxel.
+- `x::T`: Array of x-coordinates per voxel [cm].
+- `y::T`: Array of y-coordinates per voxel [cm].
+- `z::T`: Array of z-coordinates per voxel [cm].
 """
 function make_coordinates(x::T, y::T, z::T) where {T<:AbstractArray{<:Real}}
 

@@ -20,10 +20,8 @@ Base.view(Ω::AbstractConfigurationStates, inds...) = view(Ω.matrix, inds...)
 # # The three methods below are used to make it possible to write Ω .= R * Ω instead of Ω.matrix .= R * Ω.matrix
 
 # # Overload * operator
-# function Base.:*(R::AbstractMatrix, Ω::AbstractConfigurationStates)
-#     # Assuming simple matrix multiplication for demonstration
-#     return typeof(Ω)(R * Ω.matrix)
-# end
+# function Base.:*(R::AbstractMatrix, Ω::AbstractConfigurationStates) # Assuming simple
+#     matrix multiplication for demonstration return typeof(Ω)(R * Ω.matrix) end
 
 # Overload broadcasted assignment for CustomMatrixType
 function Base.broadcasted(::typeof(identity), Ω::AbstractConfigurationStates)
@@ -41,22 +39,22 @@ end
 """
     F₊(Ω)
 
-View into the first row of the configuration state matrix `Ω`,
-corresponding to the `F₊` states.
+View into the first row of the configuration state matrix `Ω`, corresponding to the `F₊`
+states.
 """
 F₊(Ω) = OffsetVector(view(Ω, 1, :), 0:size(Ω, 2)-1)
 """
     F̄₋(Ω)
 
-View into the second row of the configuration state matrix `Ω`,
-corresponding to the `F̄₋` states.
+View into the second row of the configuration state matrix `Ω`, corresponding to the `F̄₋`
+states.
 """
 F̄₋(Ω) = OffsetVector(view(Ω, 2, :), 0:size(Ω, 2)-1)
 """
     Z(Ω)
 
-View into the third row of the configuration state matrix `Ω`,
-corresponding to the `Z` states.
+View into the third row of the configuration state matrix `Ω`, corresponding to the `Z`
+states.
 """
 Z(Ω) = OffsetVector(view(Ω, 3, :), 0:size(Ω, 2)-1)
 
@@ -67,9 +65,9 @@ Z(Ω) = OffsetVector(view(Ω, 3, :), 0:size(Ω, 2)-1)
 """
     Ω_eltype(sequence::EPGSimulator{T,Ns}) where {T,Ns} = Complex{T}
 
-By default, configuration states are complex. For some sequences, they
-will only ever be real (no RF phase, no complex slice profile correction)
-and for these sequences a method needs to be added to this function.
+By default, configuration states are complex. For some sequences, they will only ever be
+real (no RF phase, no complex slice profile correction) and for these sequences a method
+needs to be added to this function.
 
 """
 @inline Ω_eltype(sequence::EPGSimulator{T,Ns}) where {T,Ns} = Complex{T}
@@ -99,8 +97,7 @@ Initialize an array of EPG states on a CUDA GPU to be used throughout the simula
     # # so it has has access to threadIdx
     # Ω_view = view(Ω_shared, :, :, threadIdx().x)
     # # wrap in a ConfigurationStates object
-    # Ω = MMatrix{3,Ns}(Ω_view)
-    # Ω = ConfigurationStates(Ω)
+    # Ω = MMatrix{3,Ns}(Ω_view) Ω = ConfigurationStates(Ω)
 
     # is Ns is not a multiple of 32, error
     if (Ns % WARPSIZE != 0)
@@ -116,7 +113,8 @@ end
 """
     initial_conditions!(Ω::AbstractConfigurationStates)
 
-Set all components of all states to 0, except the Z-component of the 0th state which is set to 1.
+Set all components of all states to 0, except the Z-component of the 0th state which is set
+to 1.
 """
 @inline function initial_conditions!(Ω::AbstractConfigurationStates)
     @. Ω = 0
@@ -135,10 +133,15 @@ end
 # RF excitation
 
 """
-    excite!(Ω::AbstractConfigurationStates, RF::Complex, p::AbstractTissueProperties)
+    excite!(Ω::AbstractConfigurationStates, RF, p::AbstractTissueProperties)
 
-Mixing of states due to RF pulse. Magnitude of RF is the flip angle in degrees.
-Phase of RF is the phase of the pulse. If RF is real, the computations simplify a little bit.
+Apply RF pulse rotation to the EPG states `Ω`.
+
+# Arguments
+- `Ω`: The configuration state matrix.
+- `RF`: Complex RF pulse value. `abs(RF)` is the flip angle (degrees), `angle(RF)` is the
+  pulse phase (radians). `B₁` scaling from `p` is applied internally if `hasB₁(p)`.
+- `p`: Tissue properties (`AbstractTissueProperties`).
 """
 @inline function excite!(
     Ω::AbstractConfigurationStates,
@@ -179,9 +182,16 @@ Phase of RF is the phase of the pulse. If RF is real, the computations simplify 
     return nothing
 end
 """
-    excite!(Ω::AbstractConfigurationStates, RF::T, p::AbstractTissueProperties) where T<:Union{Real, Quantity{<:Real}}
+    excite!(Ω::AbstractConfigurationStates, RF, p::AbstractTissueProperties) where {T<:Union{Real, Quantity{<:Real}}}
 
-If RF is real, the calculations simplify (and probably Ω is real too, reducing memory (access) requirements).
+Apply RF pulse rotation to the EPG states `Ω` (version for real-valued RF pulse, assuming
+zero phase).
+
+# Arguments
+- `Ω`: The configuration state matrix.
+- `RF`: Real RF pulse value representing the flip angle (degrees). `B₁` scaling from `p` is
+  applied internally if `hasB₁(p)`.
+- `p`: Tissue properties (`AbstractTissueProperties`).
 """
 @inline function excite!(
     Ω::AbstractConfigurationStates,
@@ -215,9 +225,15 @@ If RF is real, the calculations simplify (and probably Ω is real too, reducing 
 end
 
 """
-    rotate!(Ω::AbstractConfigurationStates, eⁱᶿ::T) where T
+    rotate!(Ω::AbstractConfigurationStates, eⁱᶿ)
 
-Rotate `F₊` and `F̄₋` states under the influence of `eⁱᶿ = exp(i * ΔB₀ * Δt)`
+Apply phase accrual due to off-resonance to the transverse EPG states (`F₊`, `F̄₋`).
+
+# Arguments
+- `Ω`: The configuration state matrix.
+- `eⁱᶿ`: Complex rotation factor, typically `exp(im * Δω * Δt)`, where `Δω` is the
+  off-resonance frequency (rad/s, potentially derived from `p.B₀`) and `Δt` is the time
+  duration (seconds).
 """
 @inline function rotate!(Ω::AbstractConfigurationStates, eⁱᶿ::T) where {T}
     @. Ω.matrix[1:2, :] *= (eⁱᶿ, conj(eⁱᶿ))
@@ -228,7 +244,14 @@ end
 """
     decay!(Ω::AbstractConfigurationStates, E₁, E₂)
 
-T₂ decay for F-components, T₁ decay for `Z`-component of each state.
+Apply T₁ and T₂ relaxation effects to the EPG states `Ω`.
+
+# Arguments
+- `Ω`: The configuration state matrix.
+- `E₁`: T₁ relaxation factor, `exp(-Δt/T₁)`, where `Δt` is the time duration (seconds) and
+  `T₁` is from the tissue properties (seconds).
+- `E₂`: T₂ relaxation factor, `exp(-Δt/T₂)`, where `Δt` is the time duration (seconds) and
+  `T₂` is from the tissue properties (seconds).
 """
 @inline function decay!(Ω::AbstractConfigurationStates, E₁, E₂)
     @. Ω.matrix *= (E₂, E₂, E₁)
@@ -237,7 +260,14 @@ end
 """
     rotate_decay!(Ω::AbstractConfigurationStates, E₁, E₂, eⁱᶿ)
 
-Rotate and decay combined
+Apply combined off-resonance rotation and T₁/T₂ relaxation to the EPG states `Ω`.
+
+# Arguments
+- `Ω`: The configuration state matrix.
+- `E₁`: T₁ relaxation factor (`exp(-Δt/T₁)`).
+- `E₂`: T₂ relaxation factor (`exp(-Δt/T₂)`).
+- `eⁱᶿ`: Complex off-resonance rotation factor (`exp(im * Δω * Δt)`). (See `rotate!` and
+`decay!` for details on arguments).
 """
 @inline function rotate_decay!(Ω::AbstractConfigurationStates, E₁, E₂, eⁱᶿ)
     @. Ω.matrix *= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
@@ -248,7 +278,12 @@ end
 """
     regrowth!(Ω::AbstractConfigurationStates, E₁)
 
-T₁ regrowth for Z-component of 0th order state.
+Apply T₁ regrowth to the longitudinal magnetization equilibrium state (`Z₀`).
+
+# Arguments
+- `Ω`: The configuration state matrix.
+- `E₁`: T₁ relaxation factor, `exp(-Δt/T₁)`, where `Δt` is the time duration (seconds) and
+  `T₁` is from the tissue properties (seconds). The regrowth amount is `(1 - E₁)`.
 """
 @inline function regrowth!(Ω::AbstractConfigurationStates, E₁)
     @inbounds Z(Ω)[0] += (1 - E₁)
@@ -265,8 +300,8 @@ end
 """
     dephasing!(Ω::AbstractConfigurationStates)
 
-Shift states around due to dephasing gradient:
-The `F₊` go up one, the `F̄₋` go down one and `Z` do not change
+Shift states around due to dephasing gradient: The `F₊` go up one, the `F̄₋` go down one and
+`Z` do not change
 """
 @inline function dephasing!(Ω::AbstractConfigurationStates)
     shift_down!(F̄₋(Ω))
@@ -350,7 +385,8 @@ end
 """
     invert!(Ω::AbstractConfigurationStates, p::AbstractTissueProperties)
 
-Invert `Z`-component of states of all orders. *Assumes fully spoiled transverse magnetization*.
+Invert `Z`-component of states of all orders. *Assumes fully spoiled transverse
+magnetization*.
 """
 @inline function invert!(Ω::AbstractConfigurationStates, p::AbstractTissueProperties)
     # inversion angle
@@ -385,8 +421,8 @@ end
 """
     sample_transverse!(output, index::Union{Integer,CartesianIndex}, Ω::AbstractConfigurationStates)
 
-Sample the measurable transverse magnetization, that is, the `F₊` component of the 0th state.
-The `+=` is needed for 2D sequences where slice profile is taken into account.
+Sample the measurable transverse magnetization, that is, the `F₊` component of the 0th
+state. The `+=` is needed for 2D sequences where slice profile is taken into account.
 """
 @inline function sample_transverse!(output, index::Union{Integer,CartesianIndex}, Ω::AbstractConfigurationStates)
     @inbounds output[index] += F₊(Ω)[0]
@@ -401,8 +437,8 @@ end
 """
     sample_Ω!(output, index::Union{Integer,CartesianIndex}, Ω::AbstractConfigurationStates)
 
-Sample the entire configuration state matrix `Ω`. The `+=` is needed
-for 2D sequences where slice profile is taken into account.
+Sample the entire configuration state matrix `Ω`. The `+=` is needed for 2D sequences where
+slice profile is taken into account.
 """
 @inline function sample_Ω!(output, index::Union{Integer,CartesianIndex}, Ω::AbstractConfigurationStates)
     @inbounds output[index] .+= Ω
