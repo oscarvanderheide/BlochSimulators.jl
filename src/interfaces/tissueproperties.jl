@@ -107,7 +107,7 @@ for P in subtypes(AbstractTissueProperties)
         """
             $($(structname_ρˣρʸ)){T} <: AbstractTissueProperties{$($(N+2)),T}
 
-        Tissue properties struct containing $(fnames_str). Units are defined in [`AbstractTissueProperties`](@ref).
+        Tissue properties struct containing $($(fnames_str)). Units are defined in [`AbstractTissueProperties`](@ref).
         """
         struct $(structname_ρˣρʸ){T} <: AbstractTissueProperties{$(N + 2),T}
             $(fnames_typed_ρˣρʸ...)
