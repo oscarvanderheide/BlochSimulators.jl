@@ -78,15 +78,15 @@ cu_parameters = parameters |> f32 |> gpu;
 # Remember, the first time a compilation procedure takes place which, especially
 # on GPU, can take some time.
 println("Active CUDA device:");
-BlochSimulators.CUDA.device();
+BlochSimulators.CUDA.device()
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 # Call the pre-compiled version
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
 
 # Increase the number of parameters:
-T₁ = rand(500_000)
-T₂ = 0.1 * T₁
-cu_parameters = (@parameters T₁ T₂) |> f32 |> gpu
+T₁ = collect(logrange(0.1, 5.0, 500_000));
+T₂ = 0.1 * T₁;
+cu_parameters = (@parameters T₁ T₂) |> f32 |> gpu;
 
 @time dictionary = simulate_magnetization(CUDALibs(), cu_sequence, cu_parameters);
