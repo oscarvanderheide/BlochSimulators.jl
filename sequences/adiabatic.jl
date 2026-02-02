@@ -5,9 +5,9 @@ This struct is used to simulate an adiabatic inversion pulse. This struct itself
 could be used as field in other sequence structs.
 
 # Fields
-- `γΔtA::V`:  # Time-dependent amplitude modulation.
-- `Δω::V` # Time-dependent frequency modulation
-- `Δt::T`: Time discretization step, assumed constant
+- `γΔtA::V`: Time-dependent amplitude modulation. Units: **radians** (γ·B₁·Δt)
+- `Δω::V`: Time-dependent frequency modulation. Units: **rad/s** (angular frequency offset)
+- `Δt::T`: Time discretization step in **seconds**, assumed constant
 """
 struct AdiabaticInversion{T<:Real,V<:AbstractVector} <: IsochromatSimulator{T}
     γΔtA::V

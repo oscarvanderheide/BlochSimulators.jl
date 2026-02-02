@@ -8,11 +8,11 @@ Within each TR, multiple time steps are used to simulate the RF excitation. Then
 end of the RF excitation to the echo time (applying slice refocussing gradient, T₂ decay and B₀ rotation), and again in one time step from the echo time to the start of the next RF excitation.
 
 # Fields
-- `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and
-    angle.(RF_train) should be the RF phases in degrees.
-- `TR::T`: Repetition time in seconds, assumed constant during the sequence
-- `γΔtRF::SVector{N}{V}`: Time-discretized RF waveform, normalized to flip angle of 1 degree
-- `Δt::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}`: Time interval for each sample of excitation pulse (ex),
+- `RF_train::U`: Vector with flip angle for each TR. `abs.(RF_train)` are RF flip angles in **degrees** and
+    `angle.(RF_train)` are RF phases in **radians**.
+- `TR::T`: Repetition time in **seconds**, assumed constant during the sequence
+- `γΔtRF::SVector{N}{V}`: Time-discretized RF waveform, normalized to flip angle of 1 degree. Units: **radians**
+- `Δt::NamedTuple{(:ex, :inv, :pr),NTuple{3,T}}`: Time intervals in **seconds** for each sample of excitation pulse (ex),
     inversion delay (inv) and time between RF and TE (pr)
 """
 struct pSSFP3D{T<:AbstractFloat,N,U<:AbstractVector{Complex{T}},V<:Number} <: IsochromatSimulator{T}
@@ -107,9 +107,9 @@ Base.getindex(seq::pSSFP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.γ
 Base.show(io::IO, seq::pSSFP3D) = begin
     println("")
     println(io, "pSSFP3D sequence")
-    println(io, "RF_train: ", typeof(seq.RF_train))
-    println(io, "TR:       ", seq.TR)
-    println(io, "γΔtRF:    ", "SVector{$(length(seq.γΔtRF))}{$(eltype(seq.γΔtRF))}")
-    println(io, "Δt:       ", seq.Δt)
+    println(io, "RF_train: ", typeof(seq.RF_train), " (degrees)")
+    println(io, "TR:       ", seq.TR, " s")
+    println(io, "γΔtRF:    ", "SVector{$(length(seq.γΔtRF))}{$(eltype(seq.γΔtRF))} (radians)")
+    println(io, "Δt:       ", seq.Δt, " (s)")
 end
 

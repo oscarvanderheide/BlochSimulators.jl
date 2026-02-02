@@ -14,19 +14,17 @@ end of the RF excitation to the echo time (applying T₁ and T₂ decay, T₁ re
 in one time step from the echo time to the start of the next RF excitation.
 
 # Fields
-- `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and
-    angle.(RF_train) should be the RF phases in degrees.
-- `sliceprofiles::V` # Matrix with RF scaling factors (a.u.) to simulate slice profile effects.
-    Each column represents the (flip angle dependent) scaling factors for one position along the slice direction.
-- `TR::T`: Repetition time in seconds, assumed constant during the sequence
-- `TE::T`: Echo time in seconds, assumed constant during the sequence
-- `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation
-- `TI::T`: Inversion delay after the inversion prepulse in seconds
-- `TW::T`: Waiting time between repetitions in seconds
-- `repetitions::Int`: Number of repetitions
+- `RF_train::U`: Vector with flip angle for each TR. `abs.(RF_train)` are RF flip angles in **degrees** and
+    `angle.(RF_train)` are RF phases in **radians**.
+- `TR::T`: Repetition time in **seconds**, assumed constant during the sequence
+- `TE::T`: Echo time in **seconds**, assumed constant during the sequence
+- `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation (dimensionless)
+- `TI::T`: Inversion delay after the inversion prepulse in **seconds**
+- `TW::T`: Waiting time between repetitions in **seconds**
+- `repetitions::Int`: Number of repetitions (dimensionless)
 - `inversion_prepulse::Bool`: With or without inversion prepulse at the start of every repetition
-- 'wait_spoiling::Bool': Spoiling is assumed before the start of a next cycle
-- 'py_undersampling_factor::Int': In some scenarios, the actual sequence is undersampled, but for simulations purposes we pretend it isn't. We then fill in the transverse magnetization at non-sampled echo times with adjacent sampled echo times.
+- `wait_spoiling::Bool`: Spoiling is assumed before the start of a next cycle
+- `py_undersampling_factor::Int`: In some scenarios, the actual sequence is undersampled, but for simulations purposes we pretend it isn't. We then fill in the transverse magnetization at non-sampled echo times with adjacent sampled echo times. (dimensionless)
 """
 # Create struct that holds parameters necessary for performing FISP simulations based on the EPG model
 struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator{T,Ns}
@@ -155,12 +153,12 @@ Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE,
 Base.show(io::IO, seq::FISP3D) = begin
     println("")
     println(io, "FISP sequence")
-    println(io, "RF_train:     ", typeof(seq.RF_train), " $(length(seq.RF_train)) flip angles")
-    println(io, "TR:           ", seq.TR)
-    println(io, "TE:           ", seq.TE)
+    println(io, "RF_train:     ", typeof(seq.RF_train), " $(length(seq.RF_train)) flip angles (degrees)")
+    println(io, "TR:           ", seq.TR, " s")
+    println(io, "TE:           ", seq.TE, " s")
     println(io, "max_state:    ", seq.max_state)
-    println(io, "TI:           ", seq.TI)
-    println(io, "TW:           ", seq.TW)
+    println(io, "TI:           ", seq.TI, " s")
+    println(io, "TW:           ", seq.TW, " s")
     println(io, "repetitions:  ", seq.repetitions)
     println(io, "inversion_prepulse: ", seq.inversion_prepulse)
     println(io, "wait_spoiling: ", seq.wait_spoiling)

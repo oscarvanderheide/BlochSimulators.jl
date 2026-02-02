@@ -8,11 +8,11 @@
 NOT TESTED
 
 # Fields
-- `nreadouts::I`: The total number of readouts for this trajectory
-- `nsamplesperreadout::I`: The total number of samples per readout. Assumed to be constant
-- `Δt::T`: Time between sample points
-- `Δk⁰::U`: Δk's for all samples during the first spiral readout
-- `φ::U`: Angles with which the spiral is rotated compared to the first spiral
+- `nreadouts::I`: The total number of readouts for this trajectory (dimensionless)
+- `nsamplesperreadout::I`: The total number of samples per readout (dimensionless). Assumed to be constant
+- `Δt::T`: Time between sample points in **seconds**
+- `Δk⁰::U`: Δk's for all samples during the first spiral readout. Units: **rad/cm** (k-space, where k = γ·G·t)
+- `φ::U`: Angles with which the spiral is rotated compared to the first spiral in **degrees**
 
 
 """
@@ -40,8 +40,8 @@ Base.show(io::IO, tr::SpiralTrajectory) = begin
     println(io, "Spiral trajectory")
     println(io, "nreadouts:          ", tr.nreadouts)
     println(io, "nsamplesperreadout: ", tr.nsamplesperreadout)
-    println(io, "Δt:                 ", tr.Δt)
-    println(io, "Δk⁰:                ", typeof(tr.Δk⁰))
-    println(io, "φ:                  ", typeof(tr.φ))
+    println(io, "Δt:                 ", tr.Δt, " s")
+    println(io, "Δk⁰:                ", typeof(tr.Δk⁰), " (rad/cm)")
+    println(io, "φ:                  ", typeof(tr.φ), " (degrees)")
 end
 

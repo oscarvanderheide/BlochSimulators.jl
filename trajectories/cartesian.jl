@@ -15,13 +15,13 @@ integer for sequences where each readout has the same number of samples, but for
 sequences with different numbers of samples per readout it may be a vector of integers.
 
 # Fields
-- `nreadouts::I`: The total number of readouts for this trajectory
-- `nsamplesperreadout::I`: The total number of samples per readout
-- `Δt::T`: Time between sample points
-- `k_start_readout::U`: Starting position in k-space for each readout
-- `Δk_adc::U`: k-space step Δkₓ per sample point (same for all readouts)
-- `py::V`: Phase encoding index for each readout
-- `readout_oversampling::I`: Readout oversampling factor
+- `nreadouts::I`: The total number of readouts for this trajectory (dimensionless)
+- `nsamplesperreadout::I`: The total number of samples per readout (dimensionless)
+- `Δt::T`: Time between sample points in **seconds**
+- `k_start_readout::U`: Starting position in k-space for each readout. Units: **rad/cm** (k-space, where k = γ·G·t)
+- `Δk_adc::T`: k-space step Δkₓ per sample point (same for all readouts). Units: **rad/cm**
+- `py::V`: Phase encoding index for each readout (dimensionless)
+- `readout_oversampling::I`: Readout oversampling factor (dimensionless)
 """
 struct CartesianTrajectory2D{T<:Real,I<:Integer,U<:AbstractVector,V<:AbstractVector} <: SpokesTrajectory{T}
     nreadouts::I
@@ -209,9 +209,9 @@ Base.show(io::IO, tr::CartesianTrajectory2D) = begin
     println(io, "Cartesian trajectory 2D")
     println(io, "nreadouts:            ", tr.nreadouts)
     println(io, "nsamplesperreadout:   ", tr.nsamplesperreadout)
-    println(io, "Δt:                   ", tr.Δt)
-    println(io, "k_start_readout:      ", typeof(tr.k_start_readout))
-    println(io, "Δk_adc:               ", tr.Δk_adc)
+    println(io, "Δt:                   ", tr.Δt, " s")
+    println(io, "k_start_readout:      ", typeof(tr.k_start_readout), " (rad/cm)")
+    println(io, "Δk_adc:               ", tr.Δk_adc, " rad/cm")
     println(io, "py:                   ", typeof(tr.py))
     println(io, "readout_oversampling: ", tr.readout_oversampling)
 end

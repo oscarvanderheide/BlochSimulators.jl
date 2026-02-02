@@ -6,16 +6,16 @@ simulation within one voxel. For simulations, `SimulationParameters`s are used
 that can be assembled with the `@parameters` macro.
 
 # Possible fields:
-- `T₁::T`: Longitudinal relaxation time constant (in seconds).
-- `T₂::T`: Transverse relaxation time constant (in seconds).
-- `B₁::T`: Relative transmit B₁ field scaling factor (unitless).
-- `B₀::T`: Off-resonance frequency (in Hz).
+- `T₁::T`: Longitudinal relaxation time constant in **seconds**.
+- `T₂::T`: Transverse relaxation time constant in **seconds**.
+- `B₁::T`: Relative transmit B₁ field scaling factor (dimensionless, typically around 1.0).
+- `B₀::T`: Off-resonance frequency in **Hz** (Hertz).
 - `D::T`:  Diffusion value: the TR/TD as used in https://doi.org/10.1002/nbm.5044 
-            (in this context it is unitless: "the amount of dispersion per TR at state=1")
+            (dimensionless: "the amount of dispersion per TR at state=1")
 - `ρˣ::T`: Real part of proton density or equilibrium magnetization M₀
-  (arbitrary units).
+  (arbitrary units, dimensionless scaling factor).
 - `ρʸ::T`: Imaginary part of proton density or equilibrium magnetization M₀
-  (arbitrary units).
+  (arbitrary units, dimensionless scaling factor).
 
 # Implementation details:
 The structs are subtypes of FieldVector, which is a StaticVector with named

@@ -6,6 +6,11 @@ Simulate the MR signal at timepoint `t` from coil `i` as: `sᵢ(t) = ∑ⱼ cᵢ
 density of voxel `j`, and `mⱼ(t)` is the (normalized) transverse magnetization in voxel `j`
 obtained through Bloch simulations.
 
+Note that it calls `simulate_magnetization` to compute the magnetization response at echo
+times in all voxels, `phase_encoding!` to apply phase encoding (typically only relevant
+for Cartesian trajectories), and `magnetization_to_signal` to compute the signal from the
+(phase-encoded) magnetization at echo times.
+
 # Arguments
 - `resource::AbstractResource`: Either `CPU1()`, `CPUThreads()`, `CPUProcesses()` or
   `CUDALibs()`

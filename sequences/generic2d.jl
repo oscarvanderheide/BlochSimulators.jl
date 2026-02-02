@@ -6,11 +6,11 @@ loop over z locations to take into account slice profile effects. The Δt vector
 for the waveforms.
 
 # Fields
-- `RF::V{Complex{T}}`: Vector with (complex) RF values during each time interval
-- `GR::M{T}`: Matrix with GRx, GRy and GRz values during each time interval
-- `sample::S`: Vector with Bool's to indicate the sample points
-- `Δt::V{T}`: Vector with time intervals
-- `z::V{T}`: Vector with different positions along the slice direction
+- `RF::V{Complex{T}}`: Vector with (complex) RF values during each time interval. Units: **radians** (γ·B₁·Δt)
+- `GR::M{T}`: Matrix with GRx, GRy and GRz values during each time interval. Units: **rad·s⁻¹·cm⁻¹** (γ·G, gyromagnetic ratio times gradient strength)
+- `sample::S`: Vector with Bool's to indicate the sample points (dimensionless)
+- `Δt::V{T}`: Vector with time intervals in **seconds**
+- `z::V{T}`: Vector with different positions along the slice direction in **cm** (centimeters)
 """
 struct Generic2D{T,V<:AbstractVector{Complex{T}},W<:AbstractVector{T},M<:AbstractMatrix{T},S} <: IsochromatSimulator{T}
     RF::V

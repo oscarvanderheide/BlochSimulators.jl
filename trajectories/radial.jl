@@ -17,13 +17,13 @@ integer for sequences where each readout has the same number of samples, but for
 sequences with different numbers of samples per readout it may be a vector of integers.
 
 # Fields
-- `nreadouts::I`: The total number of readouts for this trajectory
-- `nsamplesperreadout::I`: The total number of samples per readout
-- `Δt::T`: Time between sample points
-- `k_start_readout::U`: Starting position in k-space for each readout
-- `Δk_adc::U`: k-space step Δk between each readout
-- `φ::V`: Radial angle for each readout
-- `readout_oversampling::I`: Readout oversampling factor
+- `nreadouts::I`: The total number of readouts for this trajectory (dimensionless)
+- `nsamplesperreadout::I`: The total number of samples per readout (dimensionless)
+- `Δt::T`: Time between sample points in **seconds**
+- `k_start_readout::U`: Starting position in k-space for each readout. Units: **rad/cm** (k-space, where k = γ·G·t)
+- `Δk_adc::U`: k-space step Δk between each readout. Units: **rad/cm** (complex valued: Δkₓ + i·Δkᵧ)
+- `φ::V`: Radial angle for each readout in **degrees**
+- `readout_oversampling::I`: Readout oversampling factor (dimensionless)
 """
 struct RadialTrajectory2D{T<:Real,I<:Integer,U,V} <: SpokesTrajectory{T}
     nreadouts::I
@@ -82,10 +82,10 @@ Base.show(io::IO, tr::RadialTrajectory2D) = begin
     println(io, "Radial trajectory")
     println(io, "nreadouts:            ", tr.nreadouts)
     println(io, "nsamplesperreadout:   ", tr.nsamplesperreadout)
-    println(io, "Δt:                   ", tr.Δt)
-    println(io, "k_start_readout:      ", typeof(tr.k_start_readout))
-    println(io, "Δk_adc:               ", typeof(tr.Δk_adc))
-    println(io, "φ:                    ", typeof(tr.φ))
+    println(io, "Δt:                   ", tr.Δt, " s")
+    println(io, "k_start_readout:      ", typeof(tr.k_start_readout), " (rad/cm)")
+    println(io, "Δk_adc:               ", typeof(tr.Δk_adc), " (rad/cm)")
+    println(io, "φ:                    ", typeof(tr.φ), " (degrees)")
     println(io, "readout_oversampling: ", tr.readout_oversampling)
 end
 

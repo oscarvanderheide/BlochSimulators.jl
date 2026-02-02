@@ -13,14 +13,14 @@ end of the RF excitation to the echo time (applying T₁ and T₂ decay, T₁ re
 in one time step from the echo time to the start of the next RF excitation.
 
 # Fields
-- `RF_train::U` Vector with flip angle for each TR with abs.(RF_train) the RF flip angles in degrees and
-    angle.(RF_train) should be the RF phases in degrees.
-- `sliceprofiles::V` # Matrix with RF scaling factors (a.u.) to simulate slice profile effects.
+- `RF_train::U`: Vector with flip angle for each TR. `abs.(RF_train)` are RF flip angles in **degrees** and
+    `angle.(RF_train)` are RF phases in **radians**.
+- `sliceprofiles::V`: Matrix with RF scaling factors (dimensionless) to simulate slice profile effects.
     Each column represents the (flip angle dependent) scaling factors for one position along the slice direction.
-- `TR::T`: Repetition time in seconds, assumed constant during the sequence
-- `TE::T`: Echo time in seconds, assumed constant during the sequence
-- `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation
-- `TI::T`: Inversion delay after the inversion prepulse in seconds
+- `TR::T`: Repetition time in **seconds**, assumed constant during the sequence
+- `TE::T`: Echo time in **seconds**, assumed constant during the sequence
+- `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation (dimensionless)
+- `TI::T`: Inversion delay after the inversion prepulse in **seconds**
 """
 struct FISP2D{T,Ns,U<:AbstractVector,V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     RF_train::U
@@ -111,12 +111,12 @@ FISP2D(RF_train, sliceprofiles, TR, TE, max_state::Int, TI) = FISP2D(RF_train, s
 Base.show(io::IO, seq::FISP2D) = begin
     println("")
     println(io, "FISP2D sequence")
-    println(io, "RF_train:     ", typeof(seq.RF_train), " $(length(seq.RF_train)) flip angles")
-    println(io, "sliceprofiles:", "$(typeof(seq.sliceprofiles)) $(size(seq.sliceprofiles))")
-    println(io, "TR:           ", seq.TR)
-    println(io, "TE:           ", seq.TE)
+    println(io, "RF_train:     ", typeof(seq.RF_train), " $(length(seq.RF_train)) flip angles (degrees)")
+    println(io, "sliceprofiles:", "$(typeof(seq.sliceprofiles)) $(size(seq.sliceprofiles)) (dimensionless)")
+    println(io, "TR:           ", seq.TR, " s")
+    println(io, "TE:           ", seq.TE, " s")
     println(io, "max_state:    ", seq.max_state)
-    println(io, "TI:           ", seq.TI)
+    println(io, "TI:           ", seq.TI, " s")
 end
 
 # Convenience constructor to quickly generate pSSFP sequence of length nTR

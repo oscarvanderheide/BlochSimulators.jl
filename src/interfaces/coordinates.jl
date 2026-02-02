@@ -6,9 +6,9 @@ signal simulations, `StructArray{<:Coordinates}`s are used to store the coordina
 all voxels. Such arrays are created using the `make_coordinates` function.
 
 # Fields
-- `x::T`: Position of voxel along the x direction [cm].
-- `y::T`: Position of voxel along the y direction [cm].
-- `z::T`: Position of voxel along the z direction [cm].
+- `x::T`: Position of voxel along the x direction in **cm** (centimeters).
+- `y::T`: Position of voxel along the y direction in **cm** (centimeters).
+- `z::T`: Position of voxel along the z direction in **cm** (centimeters).
 """
 struct Coordinates{T<:Real}
     x::T
@@ -26,9 +26,9 @@ end
 Create a 3D meshgrid of Coordinates from arrays `x`, `y`, and `z` and return it as a StructArray.
 
 # Arguments
-- `x::T`: Array of x-coordinates per voxel [cm].
-- `y::T`: Array of y-coordinates per voxel [cm].
-- `z::T`: Array of z-coordinates per voxel [cm].
+- `x::T`: Array of x-coordinates per voxel in **cm** (centimeters).
+- `y::T`: Array of y-coordinates per voxel in **cm** (centimeters).
+- `z::T`: Array of z-coordinates per voxel in **cm** (centimeters).
 """
 function make_coordinates(x::T, y::T, z::T) where {T<:AbstractArray{<:Real}}
 
