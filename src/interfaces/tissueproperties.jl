@@ -10,8 +10,8 @@ that can be assembled with the `@parameters` macro.
 - `T₂::T`: Transverse relaxation time constant in **seconds**.
 - `B₁::T`: Relative transmit B₁ field scaling factor (dimensionless, typically around 1.0).
 - `B₀::T`: Off-resonance frequency in **Hz** (Hertz).
-- `D::T`:  Diffusion value: the TR/TD as used in https://doi.org/10.1002/nbm.5044
-            (dimensionless: "the amount of dispersion per TR at state=1")
+- `D::T`:  Diffusion coefficient in **m²/s**. The decay time constant T_D is calculated
+            from D, TR, and the spoiling gradient area Δk in the sequence implementation.
 - `ρˣ::T`: Real part of proton density or equilibrium magnetization M₀
   (arbitrary units, dimensionless scaling factor).
 - `ρʸ::T`: Imaginary part of proton density or equilibrium magnetization M₀

@@ -25,6 +25,7 @@ in one time step from the echo time to the start of the next RF excitation.
 - `inversion_prepulse::Bool`: With or without inversion prepulse at the start of every repetition
 - `wait_spoiling::Bool`: Spoiling is assumed before the start of a next cycle
 - `py_undersampling_factor::Int`: In some scenarios, the actual sequence is undersampled, but for simulations purposes we pretend it isn't. We then fill in the transverse magnetization at non-sampled echo times with adjacent sampled echo times. (dimensionless)
+- `Δk_spoil::T`: Spoiling gradient area (in rad/m). Used to calculate diffusion decay time constant TD = 1/(D * Δk²)
 """
 # Create struct that holds parameters necessary for performing FISP simulations based on the EPG model
 struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator{T,Ns}
@@ -38,19 +39,20 @@ struct FISP3D{T<:AbstractFloat,Ns,U<:AbstractVector{Complex{T}}} <: EPGSimulator
     inversion_prepulse::Bool
     wait_spoiling::Bool
     py_undersampling_factor::Int
+    Δk_spoil::T
 
     # Inner constructor
-    function FISP3D(RF_train::U, TR::T, TE::T, max_state::Val{Ns}, TI::T, TW::T, repetitions::Int, inversion_prepulse::Bool, wait_spoiling::Bool, py_undersampling_factor::Int) where {T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}}
+    function FISP3D(RF_train::U, TR::T, TE::T, max_state::Val{Ns}, TI::T, TW::T, repetitions::Int, inversion_prepulse::Bool, wait_spoiling::Bool, py_undersampling_factor::Int, Δk_spoil::T) where {T<:AbstractFloat, Ns, U<:AbstractVector{Complex{T}}}
         if mod(Ns, 32) != 0
             error("max_state must be a multiple of 32")
         end
-        new{T, Ns, U}(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor)
+        new{T, Ns, U}(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor, Δk_spoil    )
     end
 
 end
-# provide default values for wait_spoiling and py_undersampling_factor for backward compatibility
+# provide default values for wait_spoiling, py_undersampling_factor, and Δk_spoil for backward compatibility
 FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse) =
-    FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, false, 2)
+    FISP3D(RF_train, TR, TE, max_state, TI, TW, repetitions, inversion_prepulse, false, 2, zero(TR))
 
 # To be able to change precision and send to CUDA device
 @functor FISP3D
@@ -90,7 +92,8 @@ output_eltype(sequence::FISP3D) = unitless(eltype(sequence.RF_train))
     R = sequence.py_undersampling_factor
 
     if hasD(p)
-      expᵈᴮ = diffusion_decay_matrix(Ω, p.D)
+      TD⁻¹ = p.D * sequence.Δk_spoil^2
+      expᵈᴮ = diffusion_decay_matrix(Ω, TR * TD⁻¹)
     end
 
     # Ω = initial_conditions(Ω)
@@ -142,11 +145,14 @@ end
 # The _value_ of max_state needs to be part of the type, not its type (<:Int)
 # That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP,
 # here's a constructor that takes care of it in case you forget.
+FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor, Δk) =
+    FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor, Δk)
+# Backward compatibility: version without Δk_spoil
 FISP3D(RF_train, TR, TE, max_state::Int, TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor) =
-    FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor)
+    FISP3D(RF_train, TR, TE, Val(max_state), TI, TW, repetitions, inversion_prepulse, wait_spoiling, py_undersampling_factor, zero(TR))
 
 # Add method to getindex to reduce sequence length with convenient syntax (idx is something like 1:nr_of_readouts)
-Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse, seq.wait_spoiling, seq.py_undersampling_factor)
+Base.getindex(seq::FISP3D, idx) = typeof(seq)(seq.RF_train[idx], seq.TR, seq.TE, seq.max_state, seq.TI, seq.TW, seq.repetitions, seq.inversion_prepulse, seq.wait_spoiling, seq.py_undersampling_factor, seq.Δk)
 
 # Nicer printing of sequence in REPL
 # Base.show(io::IO, ::MIME"text/plain", seq::FISP) = begin
@@ -163,6 +169,7 @@ Base.show(io::IO, seq::FISP3D) = begin
     println(io, "inversion_prepulse: ", seq.inversion_prepulse)
     println(io, "wait_spoiling: ", seq.wait_spoiling)
     println(io, "py_undersampling_factor: ", seq.py_undersampling_factor)
+    println(io, "Δk_spoil:           ", seq.Δk_spoil, " rad/m")
 end
 
 export FISP3D

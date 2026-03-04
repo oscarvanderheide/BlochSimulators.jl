@@ -220,8 +220,8 @@ end
     Ω_in = ones(ComplexF64, 3, 20) |> ConfigurationStates
     Ω = copy(Ω_in) |> ConfigurationStates
 
-    D = 0.0
-    no_diffusion_matrix = BlochSimulators.diffusion_decay_matrix(Ω, D)
+    D_dispersion = 0.0
+    no_diffusion_matrix = BlochSimulators.diffusion_decay_matrix(Ω, D_dispersion)
 
     # with no diffusion, diffuse!() has no effect
     BlochSimulators.diffuse!(Ω, no_diffusion_matrix)
@@ -813,8 +813,13 @@ end
     nTR = 1000;
     nvoxels = 5;
     sequence = FISP2D(nTR);
-    sequence.RF_train .= complex.([30+25*sin(2π*4.0*t/nTR) for t = 1:nTR]);
+    RF_train = complex.([30+25*sin(2π*4.0*t/nTR) for t = 1:nTR]);
+    slice_corrections = rand(ComplexF64, nTR, 3);
+    Δk_spoil = 2π*1000
 
+    # FISP sequence with spoiling gradients that can introduce diffusion effects
+    sequence = FISP2D(RF_train, slice_corrections, 0.010, 0.005, Val(32), 0.1, Δk_spoil)
+    
     # simulate magnetization without diffusion
     parameters = [T₁T₂ρˣρʸ(v*1.0, v*0.1, 1.0, 0.0) for v = 1:nvoxels] |> StructArray;
     m_no_diffusion   = simulate_magnetization(CPU1(), sequence, parameters);

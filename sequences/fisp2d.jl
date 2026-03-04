@@ -21,6 +21,7 @@ in one time step from the echo time to the start of the next RF excitation.
 - `TE::T`: Echo time in **seconds**, assumed constant during the sequence
 - `max_state::Val{Ns}`: Maximum number of states to keep track of in EPG simulation (dimensionless)
 - `TI::T`: Inversion delay after the inversion prepulse in **seconds**
+- `Δk_spoil::T`: Spoiling gradient area (in rad/m). Used to calculate diffusion decay time constant T_D = 1/(D * Δk²)
 """
 struct FISP2D{T,Ns,U<:AbstractVector,V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     RF_train::U
@@ -29,13 +30,14 @@ struct FISP2D{T,Ns,U<:AbstractVector,V<:AbstractMatrix} <: EPGSimulator{T,Ns}
     TE::T
     max_state::Val{Ns}
     TI::T
+    Δk_spoil::T
 
     # Inner constructor
-    function FISP2D(RF_train::U, sliceprofiles::V, TR::T, TE::T, max_state::Val{Ns}, TI::T) where {T, Ns, U<:AbstractVector, V<:AbstractMatrix}
+    function FISP2D(RF_train::U, sliceprofiles::V, TR::T, TE::T, max_state::Val{Ns}, TI::T, Δk_spoil::T) where {T, Ns, U<:AbstractVector, V<:AbstractMatrix}
         if mod(Ns, 32) != 0
             error("max_state must be a multiple of 32")
         end
-        new{T, Ns, U, V}(RF_train, sliceprofiles, TR, TE, max_state, TI)
+        new{T, Ns, U, V}(RF_train, sliceprofiles, TR, TE, max_state, TI, Δk_spoil)
     end
 end
 
@@ -64,7 +66,8 @@ output_eltype(sequence::FISP2D) = unitless(eltype(sequence.RF_train))
     eⁱᴮ⁰⁽ᵀᴿ⁻ᵀᴱ⁾ = off_resonance_rotation(Ω, TR - TE, p)
 
     if hasD(p)
-      expᵈᴮ = diffusion_decay_matrix(Ω, p.D)
+      TD⁻¹ = p.D * sequence.Δk_spoil^2
+      expᵈᴮ = diffusion_decay_matrix(Ω, TR * TD⁻¹)
     end
 
     @inbounds for spc in eachcol(sequence.sliceprofiles)
@@ -104,7 +107,9 @@ Base.getindex(seq::FISP2D, idx) = typeof(seq)(seq.RF_train[idx], seq.sliceprofil
 # The _value_ of max_state needs to be part of the type, not its type (<:Int)
 # That's what the Val{Ns} thing does. Because it's easy to forget doing Val(max_state) when constructing FISP2D,
 # here's a constructor that takes care of it in case you forget.
-FISP2D(RF_train, sliceprofiles, TR, TE, max_state::Int, TI) = FISP2D(RF_train, sliceprofiles, TR, TE, Val(max_state), TI)
+FISP2D(RF_train, sliceprofiles, TR, TE, max_state::Int, TI, Δk_spoil) = FISP2D(RF_train, sliceprofiles, TR, TE, Val(max_state), TI, Δk_spoil)
+# Backward compatibility: default Δk = 125663.7 rad/m (= 2π * 20000 m⁻¹)
+FISP2D(RF_train, sliceprofiles, TR, TE, max_state::Int, TI) = FISP2D(RF_train, sliceprofiles, TR, TE, Val(max_state), TI, typeof(TR)(125663.7))
 
 # Nicer printing of sequence in REPL
 # Base.show(io::IO, ::MIME"text/plain", seq::FISP2D) = begin
@@ -117,15 +122,21 @@ Base.show(io::IO, seq::FISP2D) = begin
     println(io, "TE:           ", seq.TE, " s")
     println(io, "max_state:    ", seq.max_state)
     println(io, "TI:           ", seq.TI, " s")
+    println(io, "Δk_spoil:           ", seq.Δk_spoil , " rad/m")
 end
 
 # Convenience constructor to quickly generate pSSFP sequence of length nTR
-FISP2D(nTR) = FISP2D(complex.(ones(nTR)), complex.(ones(nTR, 3)), 0.010, 0.005, Val(32), 0.1)
+FISP2D(nTR) = FISP2D(complex.(ones(nTR)), complex.(ones(nTR, 3)), 0.010, 0.005, Val(32), 0.1, 0.0)
 
 # Constructor for sequence without slice profile correction
+FISP2D(RF_train, TR, TE, max_state, TI, Δk) = begin
+    sliceprofiles = ones(eltype(RF_train), length(RF_train), 1)
+    FISP2D(RF_train, sliceprofiles, TR, TE, max_state, TI, Δk)
+end
+# Backward compatibility version without Δk
 FISP2D(RF_train, TR, TE, max_state, TI) = begin
     sliceprofiles = ones(eltype(RF_train), length(RF_train), 1)
-    FISP2D(RF_train, sliceprofiles, TR, TE, max_state, TI)
+    FISP2D(RF_train, sliceprofiles, TR, TE, max_state, TI, zero(TR))
 end
 
 export FISP2D
