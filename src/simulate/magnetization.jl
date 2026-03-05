@@ -24,7 +24,7 @@
 # - `CPUProcesses()`: Distributed execution across workers using `DArray`
 # - `CUDALibs()`: GPU execution with CUDA kernels (WARPSIZE threads per voxel)
 #
-# Each strategy calls the sequence-specific `simulate_magnetization!` method that 
+# Each strategy calls the sequence-specific `simulate_magnetization!` method that
 # numerically integrates the Bloch equations for the given sequence and tissue properties
 # using either the isochromat or the EPG formalism.
 #
@@ -46,7 +46,7 @@
 # 4. `output_eltype(sequence)` - Element type of output (typically ComplexF32 or ComplexF64)
 #
 # See the Developer Guide in README.md for more details.
-#=========================================================================================#
+=========================================================================================#
 
 #=========================================================================================
 # PUBLIC API
