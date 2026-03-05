@@ -88,7 +88,7 @@ function simulate_magnetization(
     parameters::AbstractVector{<:AbstractTissueProperties})
 
     # Sanity checks
-    if hasD(first(parameters)) && !(sequence isa EPGSimulator)
+    if :D ∈ fieldnames(eltype(parameters)) && !(sequence isa EPGSimulator)
         throw(ArgumentError("Diffusion is only supported for EPG-based sequences"))
     end
 
