@@ -103,6 +103,19 @@ struct T₁T₂B₁D{T} <: AbstractTissueProperties{4,T}
 end
 
 """
+    T₁T₂B₀D{T} <: AbstractTissueProperties{5,T}
+
+Tissue properties struct containing `T₁`, `T₂`, `B₀`, and `D`. Units are defined in
+[`AbstractTissueProperties`](@ref).
+"""
+struct T₁T₂B₀D{T} <: AbstractTissueProperties{4,T}
+    T₁::T
+    T₂::T
+    B₀::T
+    D::T
+end
+
+"""
     T₁T₂B₁B₀D{T} <: AbstractTissueProperties{5,T}
 
 Tissue properties struct containing `T₁`, `T₂`, `B₁`, `B₀`, and `D`. Units are defined in
