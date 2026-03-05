@@ -17,7 +17,7 @@ Pages   = ["operators/isochromat.jl"]
 
 ## EPG Operators
 ```@docs
-EPGStates
+ConfigurationStates
 ```
 
 ```@autodocs
@@ -33,7 +33,7 @@ AbstractTissueProperties
 
 ```@autodocs
 Modules = [BlochSimulators]
-Pages   = ["parameters/tissueparameters.jl"]
+Pages   = ["interfaces/tissueproperties.jl"]
 ```
 
 ## Sequences
@@ -48,14 +48,14 @@ EPGSimulator
 #### Interface
 ```@autodocs
 Modules = [BlochSimulators]
-Pages   = ["sequences/_interface.jl"]
+Pages   = ["interfaces/sequences.jl"]
 ```
 
 #### Examples
 
 ```@autodocs
 Modules = [BlochSimulators]
-Pages   = ["sequences/fisp.jl", "sequences/generic2d.jl", "sequences/generic3d.jl", "sequences/pssfp.jl"]
+Pages   = ["sequences/fisp2d.jl", "sequences/fisp3d.jl", "sequences/generic2d.jl", "sequences/generic3d.jl", "sequences/pssfp2d.jl", "sequences/pssfp3d.jl", "sequences/adiabatic.jl"]
 ```
 
 ## Trajectories
@@ -69,7 +69,7 @@ SpokesTrajectory
 #### Interface
 ```@autodocs
 Modules = [BlochSimulators]
-Pages   = ["trajectories/_interface.jl"]
+Pages   = ["interfaces/trajectories.jl", "trajectories/_abstract.jl"]
 ```
 
 #### Examples
@@ -90,7 +90,7 @@ Pages   = ["simulate/magnetization.jl"]
 
 ## Signal Simulation
 ```@docs
-simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)
+simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities)
 ```
 
 ```@autodocs

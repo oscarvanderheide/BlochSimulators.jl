@@ -40,9 +40,9 @@ Note that the (discretized) signal equation closely resembles a Discrete Fourier
 
 ## Simulating magnetization at echo times
 
-BlochSimulators supports two different models for performing Bloch simulations: the individual isochromat model and the extended phase graph model. For both models, basic operator functions are implemented (see [`src/operators/isochromat.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/isochromat.jl) and [`src/operators/epg.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/epg.jl)) in a type-stable and non-allocating fashion. By combining these operators, simulators for entire pulse sequences can be assembled. To this end, a user must define a new struct that is a subtype of either `IsochromatSimulator` or `EPGSimulator` with fields that are necessary to describe the pulse sequence (e.g. flip angle(s), TR, TE, etc.). A method must then be added for this new type to the `simulate_magnetization!` function which, by combining the fields of the struct with the basic operators, implements the magnetization response of the sequence. See [`src/sequences/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/sequences/_interface.jl) for additional information and requirements. Examples of sequences are provided in [`examples/sequences`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/examples/sequences).
+BlochSimulators supports two different models for performing Bloch simulations: the individual isochromat model and the extended phase graph model. For both models, basic operator functions are implemented (see [`src/operators/isochromat.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/isochromat.jl) and [`src/operators/epg.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/operators/epg.jl)) in a type-stable and non-allocating fashion. By combining these operators, simulators for entire pulse sequences can be assembled. To this end, a user must define a new struct that is a subtype of either `IsochromatSimulator` or `EPGSimulator` with fields that are necessary to describe the pulse sequence (e.g. flip angle(s), TR, TE, etc.). A method must then be added for this new type to the `simulate_magnetization!` function which, by combining the fields of the struct with the basic operators, implements the magnetization response of the sequence. See [`src/interfaces/sequences.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/interfaces/sequences.jl) for additional information and requirements. Examples of sequences are provided in [`sequences/`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/sequences).
 
-To perform simulations, tissue parameter inputs must be provided. Custom structs for different combinations of tissue properties are introduced in this package (all of which are subtypes of `AbstractTissueProperties`). See [`src/parameters/tissueparameters.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/parameters/tissueparameters.jl) for more information.
+To perform simulations, tissue parameter inputs must be provided. Custom structs for different combinations of tissue properties are introduced in this package (all of which are subtypes of `AbstractTissueProperties`). See [`src/interfaces/tissueproperties.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/interfaces/tissueproperties.jl) for more information.
 
 Given a `sequence` struct together with a set of input parameters  for each voxel (currently the parameters must be an `::AbstractArray{<:AbstractTissueProperties}`), the magnetization at echo times in each voxel is obtained with the function call
 
@@ -60,15 +60,15 @@ In order to evaluate the above expression, information from the gradient traject
 
 $m(\vec{r}_j,t)e^{-2\pi i \vec{k}(t)\cdot \vec{r}_j}$
 
-for sample points other than the echo times. See [`src/trajectories/_interface.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/trajectories/_interface.jl) for more details. Example implementations for [Cartesian](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/examples/trajectories/cartesian.jl) and [radial](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/examples/trajectories/radial.jl) trajectories are provided.
+for sample points other than the echo times. See [`src/interfaces/trajectories.jl`](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/src/interfaces/trajectories.jl) for more details. Example implementations for [Cartesian](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/trajectories/cartesian.jl) and [radial](https://github.com/oscarvanderheide/BlochSimulators.jl/blob/main/trajectories/radial.jl) trajectories are provided.
 
 Given the magnetization at echo times in all voxels (stored in `magnetization`), the signal at all sample times is computed with the function call
 
-`signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coil_sensitivities)`.
+`signal = magnetization_to_signal(resource, magnetization, parameters, trajectory, coordinates, coil_sensitivities)`.
 
-Alternatively, the signal can be computed with the `simulate` function as
+Alternatively, the signal can be computed directly with
 
-`signal = simulate_signal(resource, sequence, parameters, trajectory, coil_sensitivities)`.
+`signal = simulate_signal(resource, sequence, parameters, trajectory, coordinates, coil_sensitivities)`.
 
 We note that the implementation of `to_sample_point` for a new trajectory should be type-stable and non-allocating. In that case, the signal computation will likely run on different computational resources following the `magnetization_to_signal` implementation. In the default implementation `magnetization_to_signal`, different compute threads (i.e. when running in multi-threaded mode or in GPU) are assigned to different sample times. The benefit of this approach is that no communication between threads is required. However, from a memory-access point-of-view this approach may not necessarily be optimal. The optimal approach may depend on the actual gradient trajectory and computational resource. If more "optimal" implementations are discovered, methods may be be added `magnetization_to_signal` to use more optimized implementations for specific combinations of trajectories and resources.
 
@@ -87,7 +87,8 @@ For example, given some `sequence`, `gpu(f32(sequence))` will recursively conver
 ## Todo
 
 - For 3D applications, storing the magnetization at echo times for all voxels may not be feasible. The computations can be performed in batches though but such batching is currently not implemented.
-- Add diffusion operators to both the isochromat and extended phase graph models.
+- ~~Add diffusion operators to both the isochromat and extended phase graph models.~~ (Diffusion is now supported in EPG-based sequences via `T₁T₂D` and related tissue property types.)
+- Add diffusion operators to the isochromat model.
 - Add magnetization transfer model.
 - Add spiral and EPI trajectories.
 - ~~Store `parameters` as `StructArray` rather than `AbstractArray{<:AbstractTissueProperties}`.~~
