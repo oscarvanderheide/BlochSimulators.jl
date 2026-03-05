@@ -11,7 +11,7 @@ DocMeta.setdocmeta!(BlochSimulators, :DocTestSetup, :(using BlochSimulators); re
 
 makedocs(;
     modules=[BlochSimulators],
-    authors="Oscar van der Heide <o.vanderheide@umcutrecht.nl> and contributors",
+    authors="Oscar van der Heide <oscarvanderheide> and contributors",
     repo="https://github.com/oscarvanderheide/BlochSimulators.jl/blob/{commit}{path}#{line}",
     sitename="BlochSimulators.jl",
     format=Documenter.HTML(;
@@ -30,4 +30,3 @@ makedocs(;
 deploydocs(
     repo="github.com/oscarvanderheide/BlochSimulators.jl.git",
 )
-
