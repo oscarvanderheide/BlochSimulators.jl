@@ -1,25 +1,15 @@
-name: Documentation
+# Documentation build is now handled by CI.yml
+# This file is kept for backwards compatibility but does nothing
+# You can delete this file if desired
+
+name: Documentation (Deprecated)
 
 on:
-  push:
-    branches:
-      - main # update to match your development branch (master, main, dev, trunk, ...)
-    tags: '*'
-  pull_request:
+  workflow_dispatch:
 
 jobs:
-  build:
-    permissions:
-      contents: write
+  placeholder:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: '1.8'
-      - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      - name: Build and deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
-        run: julia --project=docs/ docs/make.jl
+      - name: Documentation moved to CI.yml
+        run: echo "Documentation building has been moved to CI.yml workflow"
