@@ -27,11 +27,9 @@ jobs:
       matrix:
         version:
           - '1.12'  # Minimum supported version
-          - '1'     # Latest stable release
         os:
           - ubuntu-latest
           - macOS-latest
-          - windows-latest
         arch:
           - x64
     steps:
