@@ -1,9 +1,9 @@
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://oscarvanderheide.github.io/BlochSimulators.jl/dev)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://MagneticResonanceImaging.github.io/BlochSimulators.jl/dev)
 
 # BlochSimulators
 
 BlochSimulators is a Julia package for performing Bloch simulations within the context of Magnetic Resonance Imaging. It provides efficient implementations of both the Isochromat Summation model and the Extended Phase Graph (EPG) model to simulate MR signals resulting from custom pulse sequences and k-space trajectories. Simulations can be deployed on various computational resources, with strong support for **CUDA-compatible GPU acceleration** to achieve high runtime performance. The package is well-suited for simulating dictionaries for [MR Fingerprinting](https://doi.org/10.1038/nature11971) or performing forward model evaluations for [MR-STAT](https://doi.org/10.1016/j.mri.2017.10.015).
-For detailed information, please refer to the [**Documentation**](https://oscarvanderheide.github.io/BlochSimulators.jl/dev).
+For detailed information, please refer to the [**Documentation**](https://MagneticResonanceImaging.github.io/BlochSimulators.jl/dev).
 
 
 #### Installation
@@ -37,12 +37,12 @@ magnetization = simulate_magnetization(CPU1(), sequence, parameters)
 println("Final magnetization (Mx, My, Mz): ", magnetization)
 ```
 
-Please see the `examples` directory and the [documentation](https://oscarvanderheide.github.io/BlochSimulators.jl/dev) for more complete examples, including sequence definitions and signal simulation.
+Please see the `examples` directory and the [documentation](https://MagneticResonanceImaging.github.io/BlochSimulators.jl/dev) for more complete examples, including sequence definitions and signal simulation.
 
 
 #### Examples
 
-The `examples` folder contains several example sequence structs as well as k-space trajectory structs. Users of BlochSimulators.jl are encouraged to modify these examples or assemble their own structs with custom sequence/k-space trajectory implementations. Example Julia code on how to use a custom sequence to simulate an MR Fingerprinting dictionary is available [here](./docs/build/dictionary.html). Another example in which both a sequence and k-space trajectory struct are used to simulate MR signal is available [here](./docs/build/signal.html).
+The `examples` folder contains several example sequence structs as well as k-space trajectory structs. Users of BlochSimulators.jl are encouraged to modify these examples or assemble their own structs with custom sequence/k-space trajectory implementations. Example Julia code on how to use a custom sequence to simulate an MR Fingerprinting dictionary is available [here](https://MagneticResonanceImaging.github.io/BlochSimulators.jl/dev/dictionary/). Another example in which both a sequence and k-space trajectory struct are used to simulate MR signal is available [here](https://MagneticResonanceImaging.github.io/BlochSimulators.jl/dev/signal/).
 
 #### Citation
 
@@ -265,7 +265,7 @@ To implement a custom k-space trajectory (e.g., for non-Cartesian imaging):
 
 ### Where to Get Help
 
-- Check the [documentation](https://oscarvanderheide.github.io/BlochSimulators.jl/dev) for API reference
+- Check the [documentation](https://MagneticResonanceImaging.github.io/BlochSimulators.jl/dev) for API reference
 - Look at existing sequence implementations in `sequences/` for patterns
 - Read operator implementations in `src/operators/` to understand available building blocks
 - Open an issue on GitHub for bugs or feature requests

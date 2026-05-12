@@ -12,7 +12,7 @@ DocMeta.setdocmeta!(BlochSimulators, :DocTestSetup, :(using BlochSimulators); re
 makedocs(;
     modules=[BlochSimulators],
     authors="Oscar van der Heide <oscarvanderheide> and contributors",
-    repo="https://github.com/oscarvanderheide/BlochSimulators.jl/blob/{commit}{path}#{line}",
+    repo="https://github.com/MagneticResonanceImaging/BlochSimulators.jl/blob/{commit}{path}#{line}",
     sitename="BlochSimulators.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
@@ -28,5 +28,5 @@ makedocs(;
 )
 
 deploydocs(
-    repo="github.com/oscarvanderheide/BlochSimulators.jl.git",
+    repo="github.com/MagneticResonanceImaging/BlochSimulators.jl.git",
 )
