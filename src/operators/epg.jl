@@ -1,4 +1,19 @@
+# EPG state containers
+# --------------------
+# Purpose: give the CPU and GPU versions of the EPG state matrix a common
+# type. Functions can then accept `AbstractConfigurationStates` instead of
+# having separate CPU and GPU implementations.
+#
+# For example, `decay!(Ω, E₁, E₂)` works with either container:
+#
+#   ConfigurationStates       -> CPU state matrix stored in an MMatrix
+#   ConfigurationStatesSubset -> one GPU thread's states stored in an SMatrix
+#
+# MMatrix is mutable, so CPU values can be changed directly. SMatrix is
+# immutable, so the GPU wrapper must be mutable: updating a GPU state means
+# replacing its `matrix` field with a new SMatrix.
 abstract type AbstractConfigurationStates{T} <: AbstractMatrix{T} end
+
 struct ConfigurationStates{T,M<:AbstractMatrix{T}} <: AbstractConfigurationStates{T}
     matrix::M
 end
@@ -9,22 +24,46 @@ mutable struct ConfigurationStatesSubset{T,M<:AbstractMatrix{T}} <: AbstractConf
     matrix::M
 end
 
-# Make the AbstractConfigurationStates satisfy the AbstractMatrix interface
+# Basic matrix interface
+# ----------------------
+# Purpose: make a state container usable like an ordinary Julia matrix.
+# These overloads forward reads and queries to the matrix stored inside Ω.
+#
+# Examples:
+#
+#   size(Ω)       # calls size(Ω.matrix)
+#   Ω[3, 1]       # reads Ω.matrix[3, 1]
+#   view(Ω, 1, :) # views the F₊ row on CPU
 Base.size(Ω::AbstractConfigurationStates) = size(Ω.matrix)
-Base.getindex(Ω::AbstractConfigurationStates, i::Int) = Ω.matrix[i]
-Base.getindex(Ω::AbstractConfigurationStates, I::Vararg{Int,N}) where {N} = Ω.matrix[I...]
-Base.setindex!(Ω::AbstractConfigurationStates, v, i::Int) = setindex!(Ω.matrix, v, i)
-Base.setindex!(Ω::AbstractConfigurationStates, v, I::Vararg{Int,N}) where {N} = setindex!(Ω.matrix, v, I...)
-@inline Base.setindex!(Ω::ConfigurationStatesSubset, v, i::Int) =
-    (Ω.matrix = setindex(Ω.matrix, v, i); v)
-@inline Base.setindex!(Ω::ConfigurationStatesSubset, v, I::Vararg{Int,N}) where {N} =
-    (Ω.matrix = setindex(Ω.matrix, v, I...); v)
-Base.view(Ω::AbstractConfigurationStates, inds...) = view(Ω.matrix, inds...)
+Base.getindex(Ω::AbstractConfigurationStates, indices...) = Ω.matrix[indices...]
+Base.view(Ω::AbstractConfigurationStates, indices...) = view(Ω.matrix, indices...)
 
-# CPU states have mutable storage, whereas GPU state subsets wrap an immutable
-# SMatrix and are updated by replacing that field. Implementing the standard
-# mutating array operations here keeps that storage detail out of the EPG
-# operators below.
+# Assignment differs because MMatrix is mutable while SMatrix is not:
+#
+#   Ω[3, 1] = 1
+#
+# changes the existing MMatrix on CPU, but creates an updated SMatrix and
+# stores it back in the wrapper on GPU.
+@inline Base.setindex!(Ω::ConfigurationStates, value, indices...) =
+    setindex!(Ω.matrix, value, indices...)
+
+@inline function Base.setindex!(Ω::ConfigurationStatesSubset, value, indices...)
+    Ω.matrix = setindex(Ω.matrix, value, indices...)
+    return value
+end
+
+# Whole-state mutation
+# --------------------
+# Purpose: support operations which replace every value in Ω while hiding
+# the CPU/GPU storage difference.
+#
+# Examples:
+#
+#   copyto!(Ω, result) # store a newly calculated state matrix
+#   fill!(Ω, 0)        # set every configuration state to zero
+#
+# On CPU these write into the existing MMatrix. On GPU they construct and
+# store a new SMatrix.
 @inline Base.copyto!(Ω::ConfigurationStates, source::AbstractMatrix) =
     (copyto!(Ω.matrix, source); Ω)
 @inline Base.copyto!(Ω::ConfigurationStatesSubset{T,M}, source::AbstractArray) where {T,M} =
@@ -34,32 +73,46 @@ Base.view(Ω::AbstractConfigurationStates, inds...) = view(Ω.matrix, inds...)
 @inline Base.fill!(Ω::ConfigurationStatesSubset, value) =
     (Ω.matrix = map(_ -> value, Ω.matrix); Ω)
 
-# Rewrite a fused broadcast to operate on the underlying static matrix. This
-# makes expressions such as `Ω .*= factors` mutate the MMatrix on CPU and
-# replace the immutable SMatrix on GPU.
-@inline _broadcast_storage(x) = x
-@inline _broadcast_storage(Ω::AbstractConfigurationStates) = Ω.matrix
-@inline function _broadcast_storage(bc::Base.Broadcast.Broadcasted)
-    return Base.Broadcast.broadcasted(bc.f, map(_broadcast_storage, bc.args)...)
+# In-place broadcasting
+# ---------------------
+# Purpose: allow the EPG operators to use normal dotted Julia expressions.
+# For example, relaxation can be written as:
+#
+#   Ω .*= (E₂, E₂, E₁)
+#
+# Julia represents that statement internally as a lazy `Broadcasted` object.
+# That object contains Ω itself. `_unwrap_state` replaces Ω with Ω.matrix so
+# Julia performs the calculation using the actual MMatrix or SMatrix.
+@inline _unwrap_state(x) = x
+@inline _unwrap_state(Ω::AbstractConfigurationStates) = Ω.matrix
+@inline function _unwrap_state(broadcast::Base.Broadcast.Broadcasted)
+    args = map(_unwrap_state, broadcast.args)
+    return Base.Broadcast.broadcasted(broadcast.f, args...)
 end
 
-@inline Base.copyto!(Ω::ConfigurationStates, bc::Base.Broadcast.Broadcasted) =
-    (copyto!(Ω.matrix, _broadcast_storage(bc)); Ω)
+@inline Base.copyto!(Ω::ConfigurationStates, broadcast::Base.Broadcast.Broadcasted) =
+    (copyto!(Ω.matrix, _unwrap_state(broadcast)); Ω)
 @inline Base.copyto!(Ω::ConfigurationStatesSubset{T,M},
-    bc::Base.Broadcast.Broadcasted) where {T,M} =
-    (Ω.matrix = M(copy(_broadcast_storage(bc))); Ω)
+    broadcast::Base.Broadcast.Broadcasted) where {T,M} =
+    (Ω.matrix = M(copy(_unwrap_state(broadcast))); Ω)
 
-# Base has its own more-specific method for scalar broadcasts, so match that
-# signature to keep assignments such as `Ω .= 0` unambiguous.
+# Julia handles scalar assignment separately, so `Ω .= 0` needs these two
+# additional methods. Both delegate to the `fill!` methods above.
 @inline Base.copyto!(Ω::ConfigurationStates,
-    bc::Base.Broadcast.Broadcasted{<:Base.Broadcast.AbstractArrayStyle{0}}) =
-    fill!(Ω, copy(_broadcast_storage(bc)))
+    broadcast::Base.Broadcast.Broadcasted{<:Base.Broadcast.AbstractArrayStyle{0}}) =
+    fill!(Ω, copy(_unwrap_state(broadcast)))
 @inline Base.copyto!(Ω::ConfigurationStatesSubset,
-    bc::Base.Broadcast.Broadcasted{<:Base.Broadcast.AbstractArrayStyle{0}}) =
-    fill!(Ω, copy(_broadcast_storage(bc)))
+    broadcast::Base.Broadcast.Broadcasted{<:Base.Broadcast.AbstractArrayStyle{0}}) =
+    fill!(Ω, copy(_unwrap_state(broadcast)))
 
-# Evaluate the product before updating Ω so `mul!(Ω, R, Ω)` is safe even
-# though the destination is also the right-hand operand.
+# Matrix multiplication
+# ---------------------
+# Purpose: apply an RF rotation using standard in-place matrix syntax:
+#
+#   mul!(Ω, R, Ω) # equivalent to Ω = R * Ω
+#
+# Ω is both an input and the output here. Therefore the multiplication is
+# completed before `copyto!` stores the result back in Ω.
 @inline LinearAlgebra.mul!(Ω::AbstractConfigurationStates, A::AbstractMatrix,
     B::AbstractConfigurationStates) = copyto!(Ω, A * B.matrix)
 
