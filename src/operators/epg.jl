@@ -5,7 +5,7 @@ end
 
 ConfigurationStates(m::Matrix) = ConfigurationStates(MMatrix{size(m)...}(m))
 
-struct ConfigurationStatesSubset{T,M<:AbstractMatrix{T}} <: AbstractConfigurationStates{T}
+mutable struct ConfigurationStatesSubset{T,M<:AbstractMatrix{T}} <: AbstractConfigurationStates{T}
     matrix::M
 end
 
@@ -15,26 +15,53 @@ Base.getindex(Ω::AbstractConfigurationStates, i::Int) = Ω.matrix[i]
 Base.getindex(Ω::AbstractConfigurationStates, I::Vararg{Int,N}) where {N} = Ω.matrix[I...]
 Base.setindex!(Ω::AbstractConfigurationStates, v, i::Int) = setindex!(Ω.matrix, v, i)
 Base.setindex!(Ω::AbstractConfigurationStates, v, I::Vararg{Int,N}) where {N} = setindex!(Ω.matrix, v, I...)
+@inline Base.setindex!(Ω::ConfigurationStatesSubset, v, i::Int) =
+    (Ω.matrix = setindex(Ω.matrix, v, i); v)
+@inline Base.setindex!(Ω::ConfigurationStatesSubset, v, I::Vararg{Int,N}) where {N} =
+    (Ω.matrix = setindex(Ω.matrix, v, I...); v)
 Base.view(Ω::AbstractConfigurationStates, inds...) = view(Ω.matrix, inds...)
 
-# # The three methods below are used to make it possible to write Ω .= R * Ω instead of Ω.matrix .= R * Ω.matrix
+# CPU states have mutable storage, whereas GPU state subsets wrap an immutable
+# SMatrix and are updated by replacing that field. Implementing the standard
+# mutating array operations here keeps that storage detail out of the EPG
+# operators below.
+@inline Base.copyto!(Ω::ConfigurationStates, source::AbstractMatrix) =
+    (copyto!(Ω.matrix, source); Ω)
+@inline Base.copyto!(Ω::ConfigurationStatesSubset{T,M}, source::AbstractArray) where {T,M} =
+    (Ω.matrix = M(source); Ω)
 
-# # Overload * operator
-# function Base.:*(R::AbstractMatrix, Ω::AbstractConfigurationStates) # Assuming simple
-#     matrix multiplication for demonstration return typeof(Ω)(R * Ω.matrix) end
+@inline Base.fill!(Ω::ConfigurationStates, value) = (fill!(Ω.matrix, value); Ω)
+@inline Base.fill!(Ω::ConfigurationStatesSubset, value) =
+    (Ω.matrix = map(_ -> value, Ω.matrix); Ω)
 
-# Overload broadcasted assignment for CustomMatrixType
-function Base.broadcasted(::typeof(identity), Ω::AbstractConfigurationStates)
-    # This allows .= to work by returning the object itself in a broadcasted context
-    return Ω
+# Rewrite a fused broadcast to operate on the underlying static matrix. This
+# makes expressions such as `Ω .*= factors` mutate the MMatrix on CPU and
+# replace the immutable SMatrix on GPU.
+@inline _broadcast_storage(x) = x
+@inline _broadcast_storage(Ω::AbstractConfigurationStates) = Ω.matrix
+@inline function _broadcast_storage(bc::Base.Broadcast.Broadcasted)
+    return Base.Broadcast.broadcasted(bc.f, map(_broadcast_storage, bc.args)...)
 end
 
-function Base.copyto!(Ω::AbstractConfigurationStates, result::AbstractConfigurationStates)
-    # Implement how the result of R * Ω should be stored back into Ω
-    Ω.matrix .= result.matrix
-    return Ω
-end
+@inline Base.copyto!(Ω::ConfigurationStates, bc::Base.Broadcast.Broadcasted) =
+    (copyto!(Ω.matrix, _broadcast_storage(bc)); Ω)
+@inline Base.copyto!(Ω::ConfigurationStatesSubset{T,M},
+    bc::Base.Broadcast.Broadcasted) where {T,M} =
+    (Ω.matrix = M(copy(_broadcast_storage(bc))); Ω)
 
+# Base has its own more-specific method for scalar broadcasts, so match that
+# signature to keep assignments such as `Ω .= 0` unambiguous.
+@inline Base.copyto!(Ω::ConfigurationStates,
+    bc::Base.Broadcast.Broadcasted{<:Base.Broadcast.AbstractArrayStyle{0}}) =
+    fill!(Ω, copy(_broadcast_storage(bc)))
+@inline Base.copyto!(Ω::ConfigurationStatesSubset,
+    bc::Base.Broadcast.Broadcasted{<:Base.Broadcast.AbstractArrayStyle{0}}) =
+    fill!(Ω, copy(_broadcast_storage(bc)))
+
+# Evaluate the product before updating Ω so `mul!(Ω, R, Ω)` is safe even
+# though the destination is also the right-hand operand.
+@inline LinearAlgebra.mul!(Ω::AbstractConfigurationStates, A::AbstractMatrix,
+    B::AbstractConfigurationStates) = copyto!(Ω, A * B.matrix)
 
 """
     F₊(Ω)
@@ -105,8 +132,19 @@ Initialize an array of EPG states on a CUDA GPU to be used throughout the simula
     end
 
     # Each thread holds (Ns ÷ WARPSIZE) columns of Ω
+    #
+    # Note this is stored as an *immutable* SMatrix, mutated by replacing the
+    # `matrix` field of the (mutable) ConfigurationStatesSubset wrapper,
+    # rather than as a mutable MMatrix mutated in place. MMatrix/MArray
+    # implement setindex! via unsafe_store! through a pointer, which forces
+    # the whole array into (very slow) GPU local memory. Once enough
+    # operations in the per-TR loop touch it, the compiler ends up spilling
+    # heavily -- this was the root cause of a >10x slowdown going from
+    # max_state=32 to max_state=64. Reassigning an immutable SMatrix instead
+    # keeps everything representable as plain SSA values, which the
+    # compiler can keep in registers.
     num_states_per_thread = Ns ÷ WARPSIZE
-    Ω = @MMatrix zeros(Ω_eltype(sequence), 3, num_states_per_thread)
+    Ω = @SMatrix zeros(Ω_eltype(sequence), 3, num_states_per_thread)
 
     return ConfigurationStatesSubset(Ω)
 end
@@ -119,15 +157,18 @@ Set all components of all states to 0, except the Z-component of the 0th state w
 to 1.
 """
 @inline function initial_conditions!(Ω::AbstractConfigurationStates)
-    @. Ω = 0
+    fill!(Ω, zero(eltype(Ω)))
     @inbounds Z(Ω)[0] = 1
     return nothing
 end
 
+# GPU version: only lane 1 owns global state 0 -- each lane holds a
+# different strided subset of the states, so unlike CPU, not every lane
+# should touch Z[0] (see initialize_states(::CUDALibs, ...)).
 @inline function initial_conditions!(Ω::ConfigurationStatesSubset)
-    @. Ω = 0
+    fill!(Ω, zero(eltype(Ω)))
     if laneid() == 1
-        @inbounds Z(Ω)[0] = 1
+        @inbounds Ω[3, 1] = 1
     end
     return nothing
 end
@@ -180,9 +221,10 @@ Apply RF pulse rotation to the EPG states `Ω`.
     # assemble static matrix
     R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
     # apply rotation matrix to each state
-    Ω.matrix .= R * Ω.matrix
+    mul!(Ω, R, Ω)
     return nothing
 end
+
 """
     excite!(Ω::AbstractConfigurationStates, RF, p::AbstractTissueProperties) where {T<:Union{Real, Quantity{<:Real}}}
 
@@ -221,7 +263,7 @@ zero phase).
     # assemble static matrix
     R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
     # apply rotation matrix to each state
-    Ω.matrix .= R * Ω.matrix
+    mul!(Ω, R, Ω)
 
     return nothing
 end
@@ -238,7 +280,8 @@ Apply phase accrual due to off-resonance to the transverse EPG states (`F₊`, `
   duration (seconds).
 """
 @inline function rotate!(Ω::AbstractConfigurationStates, eⁱᶿ::T) where {T}
-    @. Ω.matrix[1:2, :] *= (eⁱᶿ, conj(eⁱᶿ))
+    Ω .*= (eⁱᶿ, conj(eⁱᶿ), one(eⁱᶿ))
+    return nothing
 end
 
 # Decay and diffuse
@@ -256,7 +299,8 @@ Apply T₁ and T₂ relaxation effects to the EPG states `Ω`.
   `T₂` is from the tissue properties (seconds).
 """
 @inline function decay!(Ω::AbstractConfigurationStates, E₁, E₂)
-    @. Ω.matrix *= (E₂, E₂, E₁)
+    Ω .*= (E₂, E₂, E₁)
+    return nothing
 end
 
 """
@@ -272,7 +316,8 @@ Apply combined off-resonance rotation and T₁/T₂ relaxation to the EPG states
 `decay!` for details on arguments).
 """
 @inline function rotate_decay!(Ω::AbstractConfigurationStates, E₁, E₂, eⁱᶿ)
-    @. Ω.matrix *= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
+    Ω .*= (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
+    return nothing
 end
 
 
@@ -311,11 +356,8 @@ only computes the corresponding columns of the diffusion decay matrix.
 """
 @inline function diffusion_decay_matrix(Ω::ConfigurationStatesSubset, D::T) where {T<:Real}
     expbD = similar(real(Ω.matrix))
-    # expbD = @MMatrix zeros(3,1)
-
-    num_states_per_thread = size(Ω, 2)
-    for idx in 1:num_states_per_thread
-        # Calculate the states this thread is responsible for
+    for idx in 1:size(Ω, 2)
+        # Calculate the state this thread is responsible for
         state = laneid() - 1 + (idx - 1) * WARPSIZE
         bᵀD = T(((state + 0.5)^2 + 1.0 / 12.0) * D)
         bᴸD = T((state^2) * D)
@@ -325,7 +367,7 @@ only computes the corresponding columns of the diffusion decay matrix.
         expbD[2, idx] = expbᵀD
         expbD[3, idx] = expbᴸD
     end
-    return ConfigurationStatesSubset(expbD)
+    return ConfigurationStatesSubset(SMatrix(expbD))
 end
 """
 diffuse!(Ω::AbstractConfigurationStatestates, diffusion_decay)
@@ -336,8 +378,8 @@ the pre-computed diffusion decay matrix.
 - `Ω`: The configuration state matrix
 - `diffusion_decay`: The pre-calculated diffusion decay terms
 """
-@inline function diffuse!(Ω, diffusion_decay)
-    @. Ω.matrix *= diffusion_decay.matrix
+@inline function diffuse!(Ω::AbstractConfigurationStates, diffusion_decay)
+    Ω .*= diffusion_decay.matrix
     return nothing
 end
 
@@ -357,10 +399,13 @@ Apply T₁ regrowth to the longitudinal magnetization equilibrium state (`Z₀`)
     @inbounds Z(Ω)[0] += (1 - E₁)
 end
 
+# GPU version: same update as above, guarded to only lane 1 -- see the
+# comment on initial_conditions!(Ω::ConfigurationStatesSubset) for why.
 @inline function regrowth!(Ω::ConfigurationStatesSubset, E₁)
     if laneid() == 1
-        @inbounds Z(Ω)[0] += (1 - E₁)
+        @inbounds Ω[3, 1] += (1 - E₁)
     end
+    return nothing
 end
 
 # Dephasing
@@ -392,58 +437,46 @@ end
     @inbounds F₊[0] = conj(F̄₋[0])
 end
 
+# GPU dephasing works directly on Ω. Its specialized setindex! above turns
+# every apparent element mutation into a functional SMatrix update.
 @inline function dephasing!(Ω::ConfigurationStatesSubset)
-    shuffle_down!(F̄₋(Ω))
-    shuffle_up!(F₊(Ω), F̄₋(Ω))
+    shuffle_down!(Ω)
+    shuffle_up!(Ω)
+    return nothing
 end
 
 # shuffle down the F- states, set highest state to 0
-@inline function shuffle_down!(F̄₋)
-
+@inline function shuffle_down!(Ω::ConfigurationStatesSubset)
     mask = CUDA.FULL_MASK
     src_lane = mod1(laneid() + 1, WARPSIZE)
-    for k in eachindex(F̄₋)
-        @inbounds F̄₋ᵏ = F̄₋[k]
-
-        if laneid() == Int32(1)
-            if k < lastindex(F̄₋)
-                @inbounds F̄₋ᵏ = F̄₋[k+1]
-            end
+    for column in axes(Ω, 2)
+        @inbounds F̄₋ᵏ = Ω[2, column]
+        if laneid() == Int32(1) && column < size(Ω, 2)
+            @inbounds F̄₋ᵏ = Ω[2, column+1]
         end
         F̄₋ᵏ = CUDA.shfl_sync(mask, F̄₋ᵏ, src_lane)  # Broadcast value from the first lane
-        @inbounds F̄₋[k] = F̄₋ᵏ
-
+        @inbounds Ω[2, column] = F̄₋ᵏ
     end
-
     if laneid() == WARPSIZE
-        @inbounds F̄₋[end] = 0
+        @inbounds Ω[2, end] = 0
     end
-
     return nothing
 end
 
 # shuffle up the F₊ states and let F₊[0] be conj(F₋[0])
-@inline function shuffle_up!(F₊, F̄₋)
-
-    # Mask that excludes the last thread in each warp
+@inline function shuffle_up!(Ω::ConfigurationStatesSubset)
     mask = CUDA.FULL_MASK
     src_lane = mod1(laneid() - Int32(1), WARPSIZE)
-
-    # Shuffle down the F- values
-    kk = Int32(lastindex(F₊))
-    for k in kk:Int32(-1):Int32(0)
-        @inbounds F₊ᵏ = F₊[k]
-
-        if laneid() == WARPSIZE
-            if k > Int32(0)
-                @inbounds F₊ᵏ = F₊[k-1]
-            end
+    last_column = Int32(size(Ω, 2))
+    for column in last_column:Int32(-1):Int32(1)
+        @inbounds F₊ᵏ = Ω[1, column]
+        if laneid() == WARPSIZE && column > Int32(1)
+            @inbounds F₊ᵏ = Ω[1, column-1]
         end
-
-        @inbounds F₊[k] = CUDA.shfl_sync(mask, F₊ᵏ, src_lane)
+        @inbounds Ω[1, column] = CUDA.shfl_sync(mask, F₊ᵏ, src_lane)
     end
     if laneid() == Int32(1)
-        @inbounds F₊[begin] = conj(F̄₋[begin])
+        @inbounds Ω[1, 1] = conj(Ω[2, 1])
     end
     return nothing
 end
@@ -460,7 +493,8 @@ magnetization*.
     # inversion angle
     θ = π
     hasB₁(p) && (θ *= p.B₁)
-    Z(Ω) .*= cos(θ)
+    cosθ = cos(θ)
+    Ω .*= (one(cosθ), one(cosθ), cosθ)
 end
 
 """
@@ -469,7 +503,7 @@ end
 Invert with B₁ insenstive (i.e. adiabatic) inversion pulse
 """
 @inline function invert!(Ω::AbstractConfigurationStates)
-    Z(Ω) .*= -1
+    Ω .*= (1, 1, -1)
 end
 
 # Spoil
@@ -479,9 +513,9 @@ end
 
 Perfectly spoil the transverse components of all states.
 """
+# Shared by CPU and GPU; see the comment on invert!(Ω, p) above.
 @inline function spoil!(Ω::AbstractConfigurationStates)
-    F₊(Ω) .= 0
-    F̄₋(Ω) .= 0
+    Ω .*= (0, 0, 1)
 end
 
 # Sample
@@ -498,7 +532,7 @@ end
 
 @inline function sample_transverse!(output, index::Union{Integer,CartesianIndex}, Ω::ConfigurationStatesSubset)
     if laneid() == 1
-        @inbounds output[index] += F₊(Ω)[0]
+        @inbounds output[index] += Ω[1, 1]
     end
 end
 

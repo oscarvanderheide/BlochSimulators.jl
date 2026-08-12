@@ -109,6 +109,24 @@ end
 # test some individual functions in BlochSimulators
 @testset "Test operator functions for EPG model" begin
 
+    @testset "state matrix mutation interface" begin
+        R = @SMatrix [2.0 0.0 0.0; 0.0 3.0 0.0; 0.0 0.0 4.0]
+        mutable_states = ConfigurationStates(ones(ComplexF64, 3, 2))
+        static_states = BlochSimulators.ConfigurationStatesSubset(
+            @SMatrix ones(ComplexF64, 3, 2)
+        )
+
+        for Ω in (mutable_states, static_states)
+            @test mul!(Ω, R, Ω) === Ω
+            @test Ω == [2 2; 3 3; 4 4]
+            @test fill!(Ω, 0) === Ω
+            @test all(iszero, Ω)
+            Ω .= 1
+            Ω .*= (2, 3, 4)
+            @test Ω == [2 2; 3 3; 4 4]
+        end
+    end
+
     # create single spin isochromat
     Ω = zeros(ComplexF64, 3, 20) |> ConfigurationStates
 
