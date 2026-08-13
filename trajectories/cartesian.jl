@@ -133,7 +133,7 @@ function magnetization_to_signal(
         @. θ += Δt * π * parameters.B₀ * 2
     end
     # Combined rotation/decay per sample point
-    E = @. exp(-Δt * inv(T₂) + im * θ)
+    E = @. exp(-Δt * inv(T₂) - im * θ)
     # To compute signal at all sample points with one matrix-matrix multiplication,
     # we pre-compute a readout_dynamics matrix instead
     Eˢ = @. E^(-(ns ÷ 2):(ns÷2)-1)'
@@ -154,7 +154,7 @@ end
 function phase_encoding!(magnetization, trajectory::CartesianTrajectory2D, coordinates::StructArray{<:Coordinates})
     y = coordinates.y |> vec
     kʸ = imag.(trajectory.k_start_readout)
-    @. magnetization *= exp(im * kʸ * y')
+    @. magnetization *= exp(-im * kʸ * y')
     return nothing
 end
 
@@ -188,7 +188,7 @@ end
     E₂ = exp(-Δt * s * R₂)
     θ = Δkₓ * x
     hasB₀(p) && (θ += π * p.B₀ * Δt * 2)
-    E₂eⁱᶿ = E₂ * exp(im * s * θ)
+    E₂eⁱᶿ = E₂ * exp(-im * s * θ)
     mₛ = E₂eⁱᶿ * mₑ
 
     return mₛ

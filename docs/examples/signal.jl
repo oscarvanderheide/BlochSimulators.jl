@@ -113,8 +113,8 @@ signal₂ = signal[:, :, 2]
 @. signal₁[2:2:end] *= -1 # correct for phase cycling
 @. signal₂[2:2:end] *= -1 # correct for phase cycling
 
-fft_image₁ = rot180(ifft(reshape(signal₁, N, N))) # rot180 instead of fftshifts
-fft_image₂ = rot180(ifft(reshape(signal₂, N, N))) # rot180 instead of fftshifts
+fft_image₁ = rot180(fft(reshape(signal₁, N, N))) # rot180 instead of fftshifts
+fft_image₂ = rot180(fft(reshape(signal₂, N, N))) # rot180 instead of fftshifts
 
 figure()
 subplot(1, 3, 1);

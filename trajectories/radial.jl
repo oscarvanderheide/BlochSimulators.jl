@@ -61,7 +61,7 @@ export RadialTrajectory2D
     E₂ = exp(-Δt * s * R₂)
     θ = Δk.re * x + Δk.im * y
     hasB₀(p) && (θ += π * p.B₀ * Δt * 2)
-    E₂eⁱᶿ = E₂ * exp(im * s * θ)
+    E₂eⁱᶿ = E₂ * exp(-im * s * θ)
     mₛ = E₂eⁱᶿ * mₑ
 
     return mₛ
