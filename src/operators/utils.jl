@@ -28,12 +28,12 @@ Calculate complex rotation factor due to off-resonance (B₀).
 - `p`: Tissue properties. If `hasB₀(p)`, uses `p.B₀` (in **Hz**)
 
 # Returns
-- Complex rotation factor `exp(im * 2π * B₀ * Δt)` (dimensionless)
+- Complex rotation factor `exp(-im * 2π * B₀ * Δt)` (dimensionless)
 """
 @inline function off_resonance_rotation(Δt::T, p::AbstractTissueProperties) where {T}
     if hasB₀(p)
         θ = π * Δt * p.B₀ * 2
-        return exp(im * θ)
+        return exp(-im * θ)
     else
         return one(T)
     end

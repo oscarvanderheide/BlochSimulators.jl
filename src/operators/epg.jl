@@ -328,7 +328,7 @@ Apply phase accrual due to off-resonance to the transverse EPG states (`F₊`, `
 
 # Arguments
 - `Ω`: The configuration state matrix.
-- `eⁱᶿ`: Complex rotation factor, typically `exp(im * Δω * Δt)`, where `Δω` is the
+- `eⁱᶿ`: Complex rotation factor, typically `exp(-im * Δω * Δt)`, where `Δω` is the
   off-resonance frequency (rad/s, potentially derived from `p.B₀`) and `Δt` is the time
   duration (seconds).
 """
@@ -365,7 +365,7 @@ Apply combined off-resonance rotation and T₁/T₂ relaxation to the EPG states
 - `Ω`: The configuration state matrix.
 - `E₁`: T₁ relaxation factor (`exp(-Δt/T₁)`).
 - `E₂`: T₂ relaxation factor (`exp(-Δt/T₂)`).
-- `eⁱᶿ`: Complex off-resonance rotation factor (`exp(im * Δω * Δt)`). (See `rotate!` and
+- `eⁱᶿ`: Complex off-resonance rotation factor (`exp(-im * Δω * Δt)`). (See `rotate!` and
 `decay!` for details on arguments).
 """
 @inline function rotate_decay!(Ω::AbstractConfigurationStates, E₁, E₂, eⁱᶿ)
