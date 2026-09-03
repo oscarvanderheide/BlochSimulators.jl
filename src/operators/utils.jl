@@ -40,9 +40,14 @@ Calculate complex rotation factor due to off-resonance (B₀).
 end
 
 """
-    E₁(Δt, T₁)
+    _E₁(Δt, T₁)
 
 Calculate T₁ relaxation factor.
+
+Private: sequences should call `E₁(state, Δt, T₁)` below instead, which
+dispatches on the state and is what lets a forward-sensitivity simulation
+return the derivative along with the factor. Calling this one directly would
+silently skip that.
 
 # Arguments
 - `Δt`: Time duration in **seconds**
@@ -51,12 +56,12 @@ Calculate T₁ relaxation factor.
 # Returns
 - Relaxation factor `exp(-Δt/T₁)` (dimensionless)
 """
-@inline E₁(Δt, T₁) = exp(-Δt * inv(T₁))
+@inline _E₁(Δt, T₁) = exp(-Δt * inv(T₁))
 
 """
-    E₂(Δt, T₂)
+    _E₂(Δt, T₂)
 
-Calculate T₂ relaxation factor.
+Calculate T₂ relaxation factor. Private; see [`_E₁`](@ref).
 
 # Arguments
 - `Δt`: Time duration in **seconds**
@@ -65,9 +70,9 @@ Calculate T₂ relaxation factor.
 # Returns
 - Relaxation factor `exp(-Δt/T₂)` (dimensionless)
 """
-@inline E₂(Δt, T₂) = exp(-Δt * inv(T₂))
+@inline _E₂(Δt, T₂) = exp(-Δt * inv(T₂))
 
 # Add methods that accept state (either Isochromat or AbstractConfigurationStates) as argument. The state is not used in these computations but makes it possible to implement manual AD that dispatches on the state
-@inline E₁(state::S, Δt, T₁) where {S<:Union{Isochromat,AbstractConfigurationStates}} = E₁(Δt, T₁)
-@inline E₂(state::S, Δt, T₂) where {S<:Union{Isochromat,AbstractConfigurationStates}} = E₂(Δt, T₂)
+@inline E₁(state::S, Δt, T₁) where {S<:Union{Isochromat,AbstractConfigurationStates}} = _E₁(Δt, T₁)
+@inline E₂(state::S, Δt, T₂) where {S<:Union{Isochromat,AbstractConfigurationStates}} = _E₂(Δt, T₂)
 @inline off_resonance_rotation(state::S, Δt, p) where {S<:Union{Isochromat,AbstractConfigurationStates}} = off_resonance_rotation(Δt, p)

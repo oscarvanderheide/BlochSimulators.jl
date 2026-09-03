@@ -245,14 +245,47 @@ Apply RF pulse rotation to the EPG states `Ω`.
     p::AbstractTissueProperties
 ) where {T<:Union{Complex,Quantity{<:Complex}}}
 
-    # angle of RF pulse, convert from degrees to radians
-    α = deg2rad(abs(RF))
-    hasB₁(p) && (α *= p.B₁)
+    α = flip_angle(RF, p)
 
     if iszero(α)
         return nothing
     end
 
+    # apply rotation matrix to each state
+    mul!(Ω, RF_rotation_matrix(RF, α), Ω)
+    return nothing
+end
+
+"""
+    flip_angle(RF, p::AbstractTissueProperties)
+
+Flip angle in **radians** of an RF pulse, including `B₁` scaling if
+`hasB₁(p)`. For a complex `RF` the nominal flip angle in degrees is
+`abs(RF)` (its phase is handled separately); a real `RF` *is* the nominal
+flip angle in degrees, signed.
+"""
+@inline function flip_angle(RF::T, p::AbstractTissueProperties) where {T<:Union{Complex,Quantity{<:Complex}}}
+    α = deg2rad(abs(RF))
+    hasB₁(p) && (α *= p.B₁)
+    return α
+end
+
+@inline function flip_angle(RF::T, p::AbstractTissueProperties) where {T<:Union{Real,Quantity{<:Real}}}
+    α = deg2rad(RF)
+    hasB₁(p) && (α *= p.B₁)
+    return α
+end
+
+"""
+    RF_rotation_matrix(RF, α)
+
+The 3x3 rotation matrix applied to each configuration state by an RF pulse
+with flip angle `α` (radians) and phase `angle(RF)`. Split out of
+[`excite!`](@ref) so that forward-sensitivity propagation can differentiate
+it w.r.t. the flip angle (see `∂RF_rotation_matrix∂B₁` in
+src/derivatives/forward_sensitivity.jl).
+"""
+@inline function RF_rotation_matrix(RF::T, α) where {T<:Union{Complex,Quantity{<:Complex}}}
     x = α / 2
     sinx, cosx = sincos(x)
     sin²x, cos²x = sinx^2, cosx^2
@@ -272,10 +305,7 @@ Apply RF pulse rotation to the EPG states `Ω`.
     R₂₁, R₂₂, R₂₃ = ℯ⁻²ⁱᵠ * sin²x, cos²x, 1im * ℯ⁻ⁱᵠ * sinα #im gives issues with CUDA profiling, 1im works
     R₃₁, R₃₂, R₃₃ = -im * ℯ⁻ⁱᵠ * sinα / 2, 1im * ℯⁱᵠ * sinα / 2, cosα
     # assemble static matrix
-    R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
-    # apply rotation matrix to each state
-    mul!(Ω, R, Ω)
-    return nothing
+    return SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
 end
 
 """
@@ -296,14 +326,24 @@ zero phase).
     p::AbstractTissueProperties
 ) where {T<:Union{Real,Quantity{<:Real}}}
 
-    # angle of RF pulse, convert from degrees to radians
-    α = deg2rad(RF)
-    hasB₁(p) && (α *= p.B₁)
+    α = flip_angle(RF, p)
 
     if iszero(α)
         return nothing
     end
 
+    # apply rotation matrix to each state
+    mul!(Ω, RF_rotation_matrix(RF, α), Ω)
+
+    return nothing
+end
+
+"""
+    RF_rotation_matrix(RF::Real, α)
+
+Version for a real-valued RF pulse (zero phase). See the complex version above.
+"""
+@inline function RF_rotation_matrix(RF::T, α) where {T<:Union{Real,Quantity{<:Real}}}
     x = α / 2
     sinx, cosx = sincos(x)
     sin²x, cos²x = sinx^2, cosx^2
@@ -314,11 +354,7 @@ zero phase).
     R₂₁, R₂₂, R₂₃ = -sin²x, cos²x, -sinα
     R₃₁, R₃₂, R₃₃ = sinα / 2, sinα / 2, cosα
     # assemble static matrix
-    R = SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
-    # apply rotation matrix to each state
-    mul!(Ω, R, Ω)
-
-    return nothing
+    return SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃)
 end
 
 """
