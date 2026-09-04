@@ -95,7 +95,7 @@
 #   * Hold the tangents in a `NamedTuple` keyed by parameter name, wrapped
 #     in a struct so that giving the tuple its own methods is not type
 #     piracy: `struct ∂Ω∂θ{names,T<:Tuple}; ∂::NamedTuple{names,T}; end`,
-#     with `getproperty` forwarding so `∂Ω.T₁` still reads the same. Putting
+#     with `getproperty` forwarding so `∂Ω.∂T₁` still reads the same. Putting
 #     `names` in the type is what makes each requested set compile its own
 #     kernel and pay only for the tangents it asked for.
 #
@@ -156,21 +156,24 @@ struct Zero end
     ∂Ω∂T₁T₂B₁(∂T₁, ∂T₂, ∂B₁)
 
 The tangent states: one ordinary configuration state matrix per
-differentiated tissue property, accessed by name as `∂Ω.T₁`. Which of the two
+differentiated tissue property, accessed by name as `∂Ω.∂T₁`. Which of the two
 is in play decides which derivatives the simulation propagates.
 
-(The same two types also hold the *output* arrays -- one magnetization
-derivative per property -- which is why the field type is unconstrained.)
+The same two types also hold the *output* arrays -- one magnetization
+derivative per property -- so the field type is `AbstractArray` rather than
+`AbstractConfigurationStates`: it has to admit the output views as well as
+the states, and it leaves room for a forward-sensitivity isochromat model,
+whose `Isochromat` is a `FieldVector` and not a configuration state either.
 """
-struct ∂Ω∂T₁T₂{A}
-    T₁::A
-    T₂::A
+struct ∂Ω∂T₁T₂{A<:AbstractArray}
+    ∂T₁::A
+    ∂T₂::A
 end
 
-struct ∂Ω∂T₁T₂B₁{A}
-    T₁::A
-    T₂::A
-    B₁::A
+struct ∂Ω∂T₁T₂B₁{A<:AbstractArray}
+    ∂T₁::A
+    ∂T₂::A
+    ∂B₁::A
 end
 
 # Whether a B₁ tangent is being propagated. A compile-time constant, so
@@ -181,17 +184,26 @@ end
 @inline has_B₁(::∂Ω∂T₁T₂B₁) = true
 
 """
-    Ω∂Ω
+    S
 
-A value paired with its tangents, destructured in every method below as
-`(Ω, ∂Ω)`. The value is a configuration state matrix during the simulation,
-and an output array when sampling.
+The `(value, tangents)` pair every operator below takes, destructured in the
+argument list as `(Ω, ∂Ω)`. Deliberately a short, unobtrusive name: the
+annotation is there to dispatch -- to pick these methods over the ordinary
+ones in epg.jl, which take an `AbstractConfigurationStates` -- rather than to
+describe the arguments, which the destructuring and the Ω/∂Ω convention
+already do.
 
-Giving this tuple type its own methods is not type piracy: the tangent structs
-are this package's own, so the methods can only ever match a
-forward-sensitivity pair, never some other package's plain tuple.
+The value is a configuration state matrix during the simulation and an output
+array when sampling. Which of the two tangent sets it holds is then a matter
+of `has_B₁(∂Ω)` above.
+
+Parametric in the value type, so a forward-sensitivity isochromat model can
+dispatch its own methods on `S{<:Isochromat}` against this one's
+`S{<:AbstractConfigurationStates}` and reuse the same tangent structs. A bare
+`Tuple` would not leave that room, since the two models share `E₁`, `E₂` and
+`off_resonance_rotation`.
 """
-const Ω∂Ω{A} = Union{Tuple{A,<:∂Ω∂T₁T₂},Tuple{A,<:∂Ω∂T₁T₂B₁}}
+const S{A} = Union{Tuple{A,<:∂Ω∂T₁T₂},Tuple{A,<:∂Ω∂T₁T₂B₁}}
 
 # Relaxation factors
 # =====================================================================
@@ -201,19 +213,19 @@ const Ω∂Ω{A} = Union{Tuple{A,<:∂Ω∂T₁T₂},Tuple{A,<:∂Ω∂T₁T₂B
 # time constant, which they destructure straight out of their argument list.
 # E₁ = exp(-Δt/T₁) so dE₁/dT₁ = E₁ Δt/T₁², and likewise dE₂/dT₂ = E₂ Δt/T₂².
 
-@inline function E₁(::Ω∂Ω, Δt, T₁)
+@inline function E₁(::S, Δt, T₁)
     E₁ = _E₁(Δt, T₁)
     return (E₁, E₁ * Δt / T₁^2)
 end
 
-@inline function E₂(::Ω∂Ω, Δt, T₂)
+@inline function E₂(::S, Δt, T₂)
     E₂ = _E₂(Δt, T₂)
     return (E₂, E₂ * Δt / T₂^2)
 end
 
 # Off-resonance depends only on B₀, which is not among the supported
 # derivatives, so it stays an ordinary number.
-@inline off_resonance_rotation(::Ω∂Ω, Δt, p) = off_resonance_rotation(Δt, p)
+@inline off_resonance_rotation(::S, Δt, p) = off_resonance_rotation(Δt, p)
 
 # Relaxation: decay!, rotate_decay!, regrowth!
 # =====================================================================
@@ -229,26 +241,26 @@ end
 # Ω. B₁ has no source term: relaxation does not depend on it, so its tangent
 # simply relaxes along with the state.
 
-@inline function decay!((Ω, ∂Ω)::Ω∂Ω, (E₁, ∂E₁∂T₁), (E₂, ∂E₂∂T₂))
+@inline function decay!((Ω, ∂Ω)::S, (E₁, ∂E₁∂T₁), (E₂, ∂E₂∂T₂))
     f = (E₂, E₂, E₁)
     ∂f∂T₁ = (Zero(), Zero(), ∂E₁∂T₁)
     ∂f∂T₂ = (∂E₂∂T₂, ∂E₂∂T₂, Zero())
 
-    ∂Ω.T₁ .= f .* ∂Ω.T₁ .+ ∂f∂T₁ .* Ω
-    ∂Ω.T₂ .= f .* ∂Ω.T₂ .+ ∂f∂T₂ .* Ω
-    has_B₁(∂Ω) && (∂Ω.B₁ .*= f)
+    ∂Ω.∂T₁ .= f .* ∂Ω.∂T₁ .+ ∂f∂T₁ .* Ω
+    ∂Ω.∂T₂ .= f .* ∂Ω.∂T₂ .+ ∂f∂T₂ .* Ω
+    has_B₁(∂Ω) && (∂Ω.∂B₁ .*= f)
     Ω .*= f
     return nothing
 end
 
-@inline function rotate_decay!((Ω, ∂Ω)::Ω∂Ω, (E₁, ∂E₁∂T₁), (E₂, ∂E₂∂T₂), eⁱᶿ)
+@inline function rotate_decay!((Ω, ∂Ω)::S, (E₁, ∂E₁∂T₁), (E₂, ∂E₂∂T₂), eⁱᶿ)
     f = (E₂ * eⁱᶿ, E₂ * conj(eⁱᶿ), complex(E₁))
     ∂f∂T₁ = (Zero(), Zero(), complex(∂E₁∂T₁))
     ∂f∂T₂ = (∂E₂∂T₂ * eⁱᶿ, ∂E₂∂T₂ * conj(eⁱᶿ), Zero())
 
-    ∂Ω.T₁ .= f .* ∂Ω.T₁ .+ ∂f∂T₁ .* Ω
-    ∂Ω.T₂ .= f .* ∂Ω.T₂ .+ ∂f∂T₂ .* Ω
-    has_B₁(∂Ω) && (∂Ω.B₁ .*= f)
+    ∂Ω.∂T₁ .= f .* ∂Ω.∂T₁ .+ ∂f∂T₁ .* Ω
+    ∂Ω.∂T₂ .= f .* ∂Ω.∂T₂ .+ ∂f∂T₂ .* Ω
+    has_B₁(∂Ω) && (∂Ω.∂B₁ .*= f)
     Ω .*= f
     return nothing
 end
@@ -258,9 +270,9 @@ end
 # (1 - (1 + ∂E₁∂T₁) = -∂E₁∂T₁), and reuses its GPU lane-1 guard rather than
 # duplicating it here. T₂ and B₁ are untouched: E₁ does not depend on them.
 
-@inline function regrowth!((Ω, ∂Ω)::Ω∂Ω, (E₁, ∂E₁∂T₁))
+@inline function regrowth!((Ω, ∂Ω)::S, (E₁, ∂E₁∂T₁))
     regrowth!(Ω, E₁)
-    regrowth!(∂Ω.T₁, 1 + ∂E₁∂T₁)
+    regrowth!(∂Ω.∂T₁, 1 + ∂E₁∂T₁)
     return nothing
 end
 
@@ -314,7 +326,7 @@ end
     return SMatrix{3,3}(R₁₁, R₂₁, R₃₁, R₁₂, R₂₂, R₃₂, R₁₃, R₂₃, R₃₃) * ∂α∂B₁
 end
 
-@inline function excite!((Ω, ∂Ω)::Ω∂Ω, RF, p::AbstractTissueProperties)
+@inline function excite!((Ω, ∂Ω)::S, RF, p::AbstractTissueProperties)
     # (∂R/∂B₁) Ω, from the old Ω, before excite! overwrites it. Note this is
     # deliberately not skipped when the flip angle is zero the way excite!
     # itself is: a voxel with B₁ = 0 has α = 0 but a perfectly well-defined,
@@ -322,11 +334,11 @@ end
     source = has_B₁(∂Ω) ? ∂RF_rotation_matrix∂B₁(RF, p) * Ω.matrix : Zero()
 
     excite!(Ω, RF, p)
-    excite!(∂Ω.T₁, RF, p)
-    excite!(∂Ω.T₂, RF, p)
+    excite!(∂Ω.∂T₁, RF, p)
+    excite!(∂Ω.∂T₂, RF, p)
     if has_B₁(∂Ω)
-        excite!(∂Ω.B₁, RF, p)
-        ∂Ω.B₁ .+= source
+        excite!(∂Ω.∂B₁, RF, p)
+        ∂Ω.∂B₁ .+= source
     end
     return nothing
 end
@@ -337,24 +349,24 @@ end
 # The B₁-dependent one multiplies Z by cos(θ) with θ = π B₁, so it is an
 # ordinary per-row factor with a B₁ source term.
 
-@inline function invert!((Ω, ∂Ω)::Ω∂Ω)
+@inline function invert!((Ω, ∂Ω)::S)
     invert!(Ω)
-    invert!(∂Ω.T₁)
-    invert!(∂Ω.T₂)
-    has_B₁(∂Ω) && invert!(∂Ω.B₁)
+    invert!(∂Ω.∂T₁)
+    invert!(∂Ω.∂T₂)
+    has_B₁(∂Ω) && invert!(∂Ω.∂B₁)
     return nothing
 end
 
-@inline function invert!((Ω, ∂Ω)::Ω∂Ω, p::AbstractTissueProperties)
+@inline function invert!((Ω, ∂Ω)::S, p::AbstractTissueProperties)
     θ = π
     hasB₁(p) && (θ *= p.B₁)
     sinθ, cosθ = sincos(θ)
     f = (one(cosθ), one(cosθ), cosθ)
     ∂f∂B₁ = (Zero(), Zero(), -π * sinθ)
 
-    ∂Ω.T₁ .*= f
-    ∂Ω.T₂ .*= f
-    has_B₁(∂Ω) && (∂Ω.B₁ .= f .* ∂Ω.B₁ .+ ∂f∂B₁ .* Ω)
+    ∂Ω.∂T₁ .*= f
+    ∂Ω.∂T₂ .*= f
+    has_B₁(∂Ω) && (∂Ω.∂B₁ .= f .* ∂Ω.∂B₁ .+ ∂f∂B₁ .* Ω)
     Ω .*= f
     return nothing
 end
@@ -365,55 +377,55 @@ end
 # diffusion scales by a precomputed matrix -- all the same linear map on the
 # state and on every tangent.
 
-@inline function dephasing!((Ω, ∂Ω)::Ω∂Ω)
+@inline function dephasing!((Ω, ∂Ω)::S)
     dephasing!(Ω)
-    dephasing!(∂Ω.T₁)
-    dephasing!(∂Ω.T₂)
-    has_B₁(∂Ω) && dephasing!(∂Ω.B₁)
+    dephasing!(∂Ω.∂T₁)
+    dephasing!(∂Ω.∂T₂)
+    has_B₁(∂Ω) && dephasing!(∂Ω.∂B₁)
     return nothing
 end
 
-@inline function spoil!((Ω, ∂Ω)::Ω∂Ω)
+@inline function spoil!((Ω, ∂Ω)::S)
     spoil!(Ω)
-    spoil!(∂Ω.T₁)
-    spoil!(∂Ω.T₂)
-    has_B₁(∂Ω) && spoil!(∂Ω.B₁)
+    spoil!(∂Ω.∂T₁)
+    spoil!(∂Ω.∂T₂)
+    has_B₁(∂Ω) && spoil!(∂Ω.∂B₁)
     return nothing
 end
 
-@inline function diffuse!((Ω, ∂Ω)::Ω∂Ω, diffusion_decay)
+@inline function diffuse!((Ω, ∂Ω)::S, diffusion_decay)
     diffuse!(Ω, diffusion_decay)
-    diffuse!(∂Ω.T₁, diffusion_decay)
-    diffuse!(∂Ω.T₂, diffusion_decay)
-    has_B₁(∂Ω) && diffuse!(∂Ω.B₁, diffusion_decay)
+    diffuse!(∂Ω.∂T₁, diffusion_decay)
+    diffuse!(∂Ω.∂T₂, diffusion_decay)
+    has_B₁(∂Ω) && diffuse!(∂Ω.∂B₁, diffusion_decay)
     return nothing
 end
 
 # The per-state diffusion decay factors depend on D, not on the
 # differentiated properties, so this is an ordinary matrix.
-@inline diffusion_decay_matrix((Ω, ∂Ω)::Ω∂Ω, D) = diffusion_decay_matrix(Ω, D)
+@inline diffusion_decay_matrix((Ω, ∂Ω)::S, D) = diffusion_decay_matrix(Ω, D)
 
 # Initial conditions and sampling
 # =====================================================================
 # The state starts at thermal equilibrium whatever the tissue properties, so
 # every tangent starts at zero.
 
-@inline function initial_conditions!((Ω, ∂Ω)::Ω∂Ω)
+@inline function initial_conditions!((Ω, ∂Ω)::S)
     initial_conditions!(Ω)
-    fill!(∂Ω.T₁, zero(eltype(∂Ω.T₁)))
-    fill!(∂Ω.T₂, zero(eltype(∂Ω.T₂)))
-    has_B₁(∂Ω) && fill!(∂Ω.B₁, zero(eltype(∂Ω.B₁)))
+    fill!(∂Ω.∂T₁, zero(eltype(∂Ω.∂T₁)))
+    fill!(∂Ω.∂T₂, zero(eltype(∂Ω.∂T₂)))
+    has_B₁(∂Ω) && fill!(∂Ω.∂B₁, zero(eltype(∂Ω.∂B₁)))
     return nothing
 end
 
 # The output is a magnetization array plus one array per derivative, so they
 # all come straight out of the simulation with no unpacking afterwards.
 
-@inline function sample_transverse!((output, ∂output)::Ω∂Ω, index, (Ω, ∂Ω)::Ω∂Ω)
+@inline function sample_transverse!((output, ∂output)::S, index, (Ω, ∂Ω)::S)
     sample_transverse!(output, index, Ω)
-    sample_transverse!(∂output.T₁, index, ∂Ω.T₁)
-    sample_transverse!(∂output.T₂, index, ∂Ω.T₂)
-    has_B₁(∂Ω) && sample_transverse!(∂output.B₁, index, ∂Ω.B₁)
+    sample_transverse!(∂output.∂T₁, index, ∂Ω.∂T₁)
+    sample_transverse!(∂output.∂T₂, index, ∂Ω.∂T₂)
+    has_B₁(∂Ω) && sample_transverse!(∂output.∂B₁, index, ∂Ω.∂B₁)
     return nothing
 end
 
@@ -427,209 +439,160 @@ Allocate `(Ω, ∂Ω)`: one ordinary configuration state matrix for the value an
 one per differentiated property, each allocated exactly as an ordinary
 simulation's state would be.
 """
-@inline initialize_derivative_states(resource, sequence::EPGSimulator, ::Val{(:T₁, :T₂)}) =
-    (initialize_states(resource, sequence),
-        ∂Ω∂T₁T₂(initialize_states(resource, sequence),
-            initialize_states(resource, sequence)))
+@inline function initialize_derivative_states(resource, sequence::EPGSimulator, ::Val{(:T₁, :T₂)})
+    Ω = initialize_states(resource, sequence)
+    ∂T₁ = initialize_states(resource, sequence)
+    ∂T₂ = initialize_states(resource, sequence)
+    return (Ω, ∂Ω∂T₁T₂(∂T₁, ∂T₂))
+end
 
-@inline initialize_derivative_states(resource, sequence::EPGSimulator, ::Val{(:T₁, :T₂, :B₁)}) =
-    (initialize_states(resource, sequence),
-        ∂Ω∂T₁T₂B₁(initialize_states(resource, sequence),
-            initialize_states(resource, sequence),
-            initialize_states(resource, sequence)))
+@inline function initialize_derivative_states(resource, sequence::EPGSimulator, ::Val{(:T₁, :T₂, :B₁)})
+    Ω = initialize_states(resource, sequence)
+    ∂T₁ = initialize_states(resource, sequence)
+    ∂T₂ = initialize_states(resource, sequence)
+    ∂B₁ = initialize_states(resource, sequence)
+    return (Ω, ∂Ω∂T₁T₂B₁(∂T₁, ∂T₂, ∂B₁))
+end
 
 # Turn the NamedTuple of output arrays (one per derivative) into the matching
 # tangent struct.
-@inline tangents_of(∂magnetization::NamedTuple{(:T₁, :T₂)}) =
-    ∂Ω∂T₁T₂(∂magnetization.T₁, ∂magnetization.T₂)
-@inline tangents_of(∂magnetization::NamedTuple{(:T₁, :T₂, :B₁)}) =
-    ∂Ω∂T₁T₂B₁(∂magnetization.T₁, ∂magnetization.T₂, ∂magnetization.B₁)
+@inline tangents_of(∂m::NamedTuple{(:T₁, :T₂)}) = ∂Ω∂T₁T₂(∂m.T₁, ∂m.T₂)
+@inline tangents_of(∂m::NamedTuple{(:T₁, :T₂, :B₁)}) = ∂Ω∂T₁T₂B₁(∂m.T₁, ∂m.T₂, ∂m.B₁)
 
 # Driver
 # =====================================================================
 
 """
-    supported_forward_sensitivity_derivatives(parameters)
+    supported_derivatives(parameters)
 
-Which tissue properties forward sensitivity can differentiate w.r.t. for the
-given parameters: `T₁`/`T₂` always, plus `B₁` when the parameters carry it.
+Which tissue properties forward sensitivity can differentiate with respect to:
+`T₁` and `T₂` always, plus `B₁` when the parameters carry one.
 """
-@inline supported_forward_sensitivity_derivatives(::Type{P}) where {P<:AbstractTissueProperties} =
+@inline supported_derivatives(::Type{P}) where {P<:AbstractTissueProperties} =
     :B₁ ∈ fieldnames(P) ? (:T₁, :T₂, :B₁) : (:T₁, :T₂)
-@inline supported_forward_sensitivity_derivatives(p::AbstractTissueProperties) =
-    supported_forward_sensitivity_derivatives(typeof(p))
-@inline supported_forward_sensitivity_derivatives(parameters::AbstractVector{<:AbstractTissueProperties}) =
-    supported_forward_sensitivity_derivatives(eltype(parameters))
 
-function _validate_forward_sensitivity_derivatives(requested_derivatives::Symbols, parameters)
-    supported = supported_forward_sensitivity_derivatives(parameters)
-    if isempty(requested_derivatives)
-        error("No derivatives requested")
-    end
-    if !(requested_derivatives ⊆ supported)
-        error("Forward-sensitivity derivatives are only implemented for $(supported) " *
-              "for tissue properties of type $(eltype(parameters)), got $(requested_derivatives)")
-    end
+@inline supported_derivatives(parameters::AbstractVector{<:AbstractTissueProperties}) =
+    supported_derivatives(eltype(parameters))
+
+function _validate_derivatives(requested, parameters)
+    supported = supported_derivatives(parameters)
+    isempty(requested) && error("No derivatives requested")
+    requested ⊆ supported || error(
+        "Forward sensitivity supports $supported for tissue properties of type " *
+        "$(eltype(parameters)), got $requested")
     return nothing
 end
 
 """
-    simulate_derivatives_forward_sensitivity(
-        requested_derivatives::Tuple{Vararg{Symbol}},
-        sequence::EPGSimulator,
-        parameters::StructVector{<:AbstractTissueProperties}
-    )
+    simulate_derivatives_forward_sensitivity(requested_derivatives, sequence, parameters)
+    simulate_derivatives_forward_sensitivity(sequence, parameters)
 
 Simulate the magnetization of an EPG-based sequence (e.g. [`FISP3D`](@ref),
-[`FISP2D`](@ref)) together with its exact partial derivatives w.r.t. the
-requested tissue properties, computed via forward sensitivity propagation
-inside the EPG simulation (not finite differences, not reverse-mode AD): a
-tangent state `∂Ω/∂θ` per property is propagated through the sequence's *own*
-`simulate_magnetization!` method -- the exact same one used for ordinary
-simulation (see the comments at the top of this file).
+[`FISP2D`](@ref)) together with its exact partial derivatives with respect to
+the requested tissue properties. The derivatives come from forward sensitivity
+propagation inside the simulation -- not finite differences, not reverse-mode
+AD -- so they are exact up to floating point rather than limited by a step
+size. See the comments at the top of this file for how.
 
-`requested_derivatives` must be a subset of
-[`supported_forward_sensitivity_derivatives`](@ref) for the given parameters:
-`(:T₁, :T₂)`, plus `:B₁` when the parameters carry a `B₁`. `T₁` and `T₂` are
-always propagated together; `B₁` is propagated only when requested.
+`requested_derivatives` must be a subset of [`supported_derivatives`](@ref)
+for the given parameters; omit it to get all of them. `T₁` and `T₂` are always
+propagated together, so asking for one of them costs the same as asking for
+both; `B₁` is propagated only when requested.
 
-Runs on CPU (`CPU1`, `CPUThreads`) or GPU (`CUDALibs`), matching
-`simulate_magnetization`'s automatic resource selection based on the types of
-`sequence`/`parameters`.
+Runs on the GPU when `sequence` and `parameters` are on the GPU, and on
+threaded CPU otherwise, matching `simulate_magnetization`.
 
 # Returns
-- `(magnetization, ∂magnetization)` where `∂magnetization` is a `NamedTuple`
-  with one entry per requested derivative, each the same size/eltype as
-  `magnetization` (matching `simulate_derivatives_finite_difference`'s
-  interface).
+`(magnetization, ∂magnetization)`, where `∂magnetization` is a `NamedTuple`
+with one entry per requested derivative, each the same size and eltype as
+`magnetization` (the same shape `simulate_derivatives_finite_difference`
+returns).
 """
 function simulate_derivatives_forward_sensitivity(
     requested_derivatives::Symbols,
     sequence::EPGSimulator,
     parameters::AbstractVector{<:AbstractTissueProperties}
 )
-    _validate_forward_sensitivity_derivatives(requested_derivatives, parameters)
+    _validate_derivatives(requested_derivatives, parameters)
 
-    sequence_on_gpu = _all_arrays_are_cuarrays(sequence)
-    parameters_on_gpu = _all_arrays_are_cuarrays(parameters)
+    on_gpu = _all_arrays_are_cuarrays(sequence)
+    on_gpu == _all_arrays_are_cuarrays(parameters) || throw(ArgumentError(
+        "Both sequence and parameters must be on the GPU or not on the GPU"))
+    resource = on_gpu ? CUDALibs() : CPUThreads()
 
-    if xor(sequence_on_gpu, parameters_on_gpu)
-        throw(ArgumentError("Both sequence and parameters must be on the GPU or not on the GPU"))
-    end
-
-    resource = if sequence_on_gpu && parameters_on_gpu
-        CUDALibs()
-    elseif Threads.nthreads() > 1
-        CPUThreads()
-    else
-        CPU1()
-    end
-
-    # T₁ and T₂ are always propagated together (they share the same
-    # relaxation operators, and computing both in one pass was measured to be
-    # faster than two passes). B₁ costs an extra tangent state and an extra
-    # matrix multiply in `excite!`, so it is only propagated when asked for.
-    # The two branches are spelled out with literal `Val`s so that each is
-    # concretely typed -- deriving the set from the runtime
-    # `requested_derivatives` instead leaves the whole call inferring badly.
+    # Spelled out with literal `Val`s so that each branch is concretely typed;
+    # deriving the set from the runtime `requested_derivatives` instead leaves
+    # the whole call inferring badly.
     magnetization, ∂propagated = if :B₁ ∈ requested_derivatives
-        _propagate_forward_sensitivities(Val((:T₁, :T₂, :B₁)), resource, sequence, parameters)
+        _simulate(Val((:T₁, :T₂, :B₁)), resource, sequence, parameters)
     else
-        _propagate_forward_sensitivities(Val((:T₁, :T₂)), resource, sequence, parameters)
+        _simulate(Val((:T₁, :T₂)), resource, sequence, parameters)
     end
 
     return magnetization, NamedTuple{requested_derivatives}(
         map(θ -> ∂propagated[θ], requested_derivatives))
 end
 
-function _propagate_forward_sensitivities(::Val{derivatives}, resource, sequence, parameters) where {derivatives}
-    _eltype = output_eltype(sequence)
-    _size = (output_size(sequence)..., length(parameters))
-    magnetization = _allocate_array_on_resource(resource, _eltype, _size)
-    ∂magnetization = NamedTuple{derivatives}(
-        map(_ -> _allocate_array_on_resource(resource, _eltype, _size), derivatives))
-
-    simulate_derivatives_forward_sensitivity!(
-        magnetization, ∂magnetization, resource, sequence, parameters)
-
-    return magnetization, ∂magnetization
-end
-
-"""
-    simulate_derivatives_forward_sensitivity(sequence::EPGSimulator, parameters)
-
-Convenience method that returns every derivative the parameters support (see
-[`supported_forward_sensitivity_derivatives`](@ref)).
-"""
 simulate_derivatives_forward_sensitivity(sequence::EPGSimulator, parameters::AbstractVector{<:AbstractTissueProperties}) =
-    simulate_derivatives_forward_sensitivity(
-        supported_forward_sensitivity_derivatives(parameters), sequence, parameters)
+    simulate_derivatives_forward_sensitivity(supported_derivatives(parameters), sequence, parameters)
 
-"""
-    simulate_derivatives_forward_sensitivity(sequence::EPGSimulator, p::AbstractTissueProperties)
+# Single-voxel convenience methods.
+simulate_derivatives_forward_sensitivity(requested_derivatives::Symbols, sequence::EPGSimulator, p::AbstractTissueProperties) =
+    simulate_derivatives_forward_sensitivity(requested_derivatives, sequence, StructVector([p]))
 
-Single-voxel convenience method: performs the simulation on the CPU in a
-single-threaded fashion.
-"""
-function simulate_derivatives_forward_sensitivity(
-    requested_derivatives::Symbols, sequence::EPGSimulator, p::AbstractTissueProperties
-)
-    return simulate_derivatives_forward_sensitivity(requested_derivatives, sequence, StructVector([p]))
-end
 simulate_derivatives_forward_sensitivity(sequence::EPGSimulator, p::AbstractTissueProperties) =
     simulate_derivatives_forward_sensitivity(sequence, StructVector([p]))
 
-# One voxel's slice of the magnetization array and of each derivative array.
-# `selectdim` cannot be used inside a GPU kernel (its bounds-check path builds
-# a string), so the kernel below slices with `view` instead.
-@inline function _output_for_voxel(magnetization, ∂magnetization, voxel)
-    voxel_dimension = ndims(magnetization)
-    return (selectdim(magnetization, voxel_dimension, voxel),
-        tangents_of(map(∂m -> selectdim(∂m, voxel_dimension, voxel), ∂magnetization)))
+# Allocate the magnetization and one derivative array per propagated property,
+# then fill them in.
+function _simulate(::Val{derivatives}, resource, sequence, parameters) where {derivatives}
+    T = output_eltype(sequence)
+    dims = (output_size(sequence)..., length(parameters))
+
+    magnetization = _allocate_array_on_resource(resource, T, dims)
+    ∂magnetization = NamedTuple{derivatives}(
+        map(_ -> _allocate_array_on_resource(resource, T, dims), derivatives))
+
+    _simulate!(magnetization, ∂magnetization, resource, sequence, parameters)
+    return magnetization, ∂magnetization
 end
 
-function simulate_derivatives_forward_sensitivity!(magnetization, ∂magnetization::NamedTuple{derivatives}, ::CPU1, sequence, parameters) where {derivatives}
-    for voxel ∈ eachindex(parameters)
-        Ω = initialize_derivative_states(CPU1(), sequence, Val(derivatives))
-        output = _output_for_voxel(magnetization, ∂magnetization, voxel)
-        simulate_magnetization!(output, sequence, Ω, parameters[voxel])
-    end
-    return nothing
+# One voxel's slice of the magnetization array and of each derivative array,
+# sliced the way `simulate_magnetization!` slices. The kernel below uses `view`
+# instead, for the same reason it does: `selectdim`'s bounds-check path builds
+# a string, which cannot be compiled for the GPU.
+@inline function _voxel_output(magnetization, ∂magnetization, voxel)
+    vd = ndims(magnetization)
+    return (selectdim(magnetization, vd, voxel),
+        tangents_of(map(∂m -> selectdim(∂m, vd, voxel), ∂magnetization)))
 end
 
-function simulate_derivatives_forward_sensitivity!(magnetization, ∂magnetization::NamedTuple{derivatives}, ::CPUThreads, sequence, parameters) where {derivatives}
+function _simulate!(magnetization, ∂magnetization::NamedTuple{derivatives}, ::CPUThreads, sequence, parameters) where {derivatives}
     Threads.@threads for voxel ∈ eachindex(parameters)
         Ω = initialize_derivative_states(CPUThreads(), sequence, Val(derivatives))
-        output = _output_for_voxel(magnetization, ∂magnetization, voxel)
+        output = _voxel_output(magnetization, ∂magnetization, voxel)
         simulate_magnetization!(output, sequence, Ω, parameters[voxel])
     end
     return nothing
 end
 
-function simulate_derivatives_forward_sensitivity!(magnetization, ∂magnetization::NamedTuple{derivatives}, ::CUDALibs, sequence, parameters) where {derivatives}
-    nr_voxels = length(parameters)
-    nr_blocks = cld(nr_voxels * WARPSIZE, THREADS_PER_BLOCK)
+function _simulate!(magnetization, ∂magnetization::NamedTuple{derivatives}, ::CUDALibs, sequence, parameters) where {derivatives}
 
-    forward_sensitivity_kernel!(magnetization, ∂magnetization, sequence, parameters) = begin
-
+    function kernel!(magnetization, ∂magnetization, sequence, parameters)
         voxel = cld((blockIdx().x - Int32(1)) * blockDim().x + threadIdx().x, WARPSIZE)
-
         Ω = initialize_derivative_states(CUDALibs(), sequence, Val(derivatives))
 
-        if voxel > length(parameters)
-            return nothing
-        end
+        # extra threads in the last block have no voxel to simulate
+        voxel > length(parameters) && return nothing
 
         output = (view(magnetization, :, voxel),
             tangents_of(map(∂m -> view(∂m, :, voxel), ∂magnetization)))
-
         simulate_magnetization!(output, sequence, Ω, @inbounds parameters[voxel])
         return nothing
     end
 
-    CUDA.@sync begin
-        @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK forward_sensitivity_kernel!(
-            magnetization, ∂magnetization, sequence, parameters)
-    end
+    nr_blocks = cld(length(parameters) * WARPSIZE, THREADS_PER_BLOCK)
+    CUDA.@sync @cuda blocks = nr_blocks threads = THREADS_PER_BLOCK kernel!(
+        magnetization, ∂magnetization, sequence, parameters)
     return nothing
 end

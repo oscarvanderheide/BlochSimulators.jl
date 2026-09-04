@@ -177,6 +177,6 @@ end
 Sample m.x, m.y and m.z components from `Isochromat`. The "+=" is needed for 2D sequences
 where slice profile is taken into account.
 """
-@inline function sample_xyz!(output::AbstractArray{<:S}, index::Union{Integer,CartesianIndex}, m::Isochromat) where {S}
+@inline function sample_xyz!(output::AbstractArray, index::Union{Integer,CartesianIndex}, m::Isochromat)
     @inbounds output[index] += S(m.x, m.y, m.z)
 end

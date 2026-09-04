@@ -73,6 +73,6 @@ Calculate T₂ relaxation factor. Private; see [`_E₁`](@ref).
 @inline _E₂(Δt, T₂) = exp(-Δt * inv(T₂))
 
 # Add methods that accept state (either Isochromat or AbstractConfigurationStates) as argument. The state is not used in these computations but makes it possible to implement manual AD that dispatches on the state
-@inline E₁(state::S, Δt, T₁) where {S<:Union{Isochromat,AbstractConfigurationStates}} = _E₁(Δt, T₁)
-@inline E₂(state::S, Δt, T₂) where {S<:Union{Isochromat,AbstractConfigurationStates}} = _E₂(Δt, T₂)
-@inline off_resonance_rotation(state::S, Δt, p) where {S<:Union{Isochromat,AbstractConfigurationStates}} = off_resonance_rotation(Δt, p)
+@inline E₁(state::Union{Isochromat,AbstractConfigurationStates}, Δt, T₁) = _E₁(Δt, T₁)
+@inline E₂(state::Union{Isochromat,AbstractConfigurationStates}, Δt, T₂) = _E₂(Δt, T₂)
+@inline off_resonance_rotation(state::Union{Isochromat,AbstractConfigurationStates}, Δt, p) = off_resonance_rotation(Δt, p)

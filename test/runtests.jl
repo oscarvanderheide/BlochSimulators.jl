@@ -911,7 +911,7 @@ end
             BlochSimulators.rotate_decay!(Ωdual, E₁dual, constant_factor(E₂fixed), complex(1.0))
             BlochSimulators.regrowth!(Ωdual, E₁dual)
 
-            @test isapprox(Ωdual[2].T₁.matrix, fd; atol=1e-6, rtol=1e-6)
+            @test isapprox(Ωdual[2].∂T₁.matrix, fd; atol=1e-6, rtol=1e-6)
             # the value itself must be propagated exactly as usual
             @test Ωdual[1].matrix ≈ f_T₁(T₁)
 
@@ -931,9 +931,9 @@ end
             BlochSimulators.rotate_decay!(Ωdual2, constant_factor(E₁fixed), E₂dual, complex(1.0))
             BlochSimulators.regrowth!(Ωdual2, constant_factor(E₁fixed))
 
-            @test isapprox(Ωdual2[2].T₂.matrix, fd2; atol=1e-6, rtol=1e-6)
+            @test isapprox(Ωdual2[2].∂T₂.matrix, fd2; atol=1e-6, rtol=1e-6)
             # the T₂ factor must leave the T₁ sensitivity untouched
-            @test all(iszero, Ωdual2[2].T₁.matrix)
+            @test all(iszero, Ωdual2[2].∂T₁.matrix)
         end
     end
 
@@ -1063,7 +1063,7 @@ end
 
         # Which derivatives are available follows from the tissue property
         # type, and the requested set is part of the compiled kernel's type.
-        supported = BlochSimulators.supported_forward_sensitivity_derivatives
+        supported = BlochSimulators.supported_derivatives
         @test supported(T₁T₂) == (:T₁, :T₂)
         @test supported(T₁T₂B₁) == (:T₁, :T₂, :B₁)
         @test supported(StructVector([T₁T₂B₁(1.0, 0.1, 0.9)])) == (:T₁, :T₂, :B₁)
