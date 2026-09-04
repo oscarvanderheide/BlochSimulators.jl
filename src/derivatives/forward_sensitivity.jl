@@ -59,6 +59,77 @@
 # local memory. Keeping separate native-width matrices means every individual
 # StaticArrays/`shfl_sync` call is exactly as wide as in an ordinary
 # simulation.
+#
+# Limitations
+# -----------
+# Because there are exactly two tangent structs, exactly two combinations
+# exist: T₁/T₂, and T₁/T₂/B₁. So:
+#
+#   * T₁ and T₂ always travel together. Requesting only `:T₁` still
+#     propagates both and returns one of them, so it costs the same as
+#     asking for both. B₁ is genuinely optional -- it is propagated only
+#     when asked for, and costs one tangent state plus a second matrix
+#     multiply in `excite!`.
+#
+#   * B₀ and D cannot be differentiated at all, though neither is hard.
+#     Both enter multiplicatively, which is the case the product rule below
+#     already covers. B₀ needs `off_resonance_rotation` to return
+#     `(eⁱᶿ, ∂eⁱᶿ∂B₀)` plus a source term in `rotate_decay!`'s two
+#     transverse rows. D differs in shape rather than in principle:
+#     `diffuse!` scales elementwise by a whole matrix, so its `∂f` is a
+#     matrix rather than a 3-tuple of per-row factors.
+#
+# Adding one more parameter costs a struct, a `has_*` trait, and one guarded
+# line per operator. Adding several is where this stops scaling, because the
+# combinations multiply.
+#
+# The general version, and why it is not the one here
+# ---------------------------------------------------
+# A version generic over an arbitrary set of parameters was written and
+# measured before this one. It produced *identical* GPU code -- same
+# registers, same runtime -- and was replaced because it was much harder to
+# read, not because it cost anything. If the combinations ever do multiply,
+# that is the way out. This is the shape it took, and the traps it hit, each
+# of which was paid for once already:
+#
+#   * Hold the tangents in a `NamedTuple` keyed by parameter name, wrapped
+#     in a struct so that giving the tuple its own methods is not type
+#     piracy: `struct ∂Ω∂θ{names,T<:Tuple}; ∂::NamedTuple{names,T}; end`,
+#     with `getproperty` forwarding so `∂Ω.T₁` still reads the same. Putting
+#     `names` in the type is what makes each requested set compile its own
+#     kernel and pay only for the tangents it asked for.
+#
+#   * "Do this to every tangent" has to become a `@generated` helper that
+#     emits one explicit call per parameter. It cannot be a loop or a
+#     `foreach`: collecting the (mutable) GPU state wrappers into a tuple
+#     and passing them through a closure defeats the GPU compiler's escape
+#     analysis, and every state is then heap-allocated. Measured symptom:
+#     48-byte device allocations and 216-664 B/thread of local memory
+#     instead of 64, with the device heap exhausting at 20k voxels.
+#
+#   * Those `@generated` helpers must emit `Expr(:meta, :inline)`. Without
+#     it the states created inside them escape in exactly the same way, with
+#     exactly the same symptom. This is the easiest thing here to get wrong,
+#     because it looks like a formatting detail.
+#
+#   * A `@generated` body may not contain a closure (`all(j -> ...)` and the
+#     like); Julia rejects it as "not pure". Plain loops with `push!` are
+#     fine, and so are comprehensions.
+#
+#   * The driver must choose the parameter set with literal `Val`s in an
+#     if/else, not derive it from the runtime `requested_derivatives`.
+#     Deriving it at runtime made inference give up with a compiler internal
+#     error ("type does not have a definite number of fields", during SROA).
+#
+#   * `Zero` carries over unchanged, and generated code can go further than
+#     dispatch does here: it can inspect the tangent field types and drop
+#     whole terms at compile time, rather than relying on a
+#     `::NTuple{3,Zero}` method existing.
+#
+#   * Watch the test suite. Each distinct specialization costs 10-18 s to
+#     compile, so a generic version that compiles one kernel per requested
+#     set can make the tests far slower than the feature is worth. See the
+#     `check_bounds` note in .github/workflows/CI.yml.
 
 # The pieces
 # =====================================================================
