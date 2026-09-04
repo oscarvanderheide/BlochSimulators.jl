@@ -44,7 +44,17 @@ jobs:
       
       - uses: julia-actions/julia-buildpkg@v1
       
+      # check_bounds defaults to "yes", which disables every @inbounds in the
+      # package. That is disproportionately expensive here: the simulation
+      # kernels are fully-unrolled StaticArrays code, and inserting bounds
+      # checks throughout blows up compilation -- measured at ~1.8x for the
+      # plain simulator but >12x for the forward-sensitivity kernels, taking
+      # the suite from ~3.5 minutes to well over 15. Run tests as the package
+      # is actually used instead. Locally, the same:
+      #     Pkg.test("BlochSimulators", julia_args=["--check-bounds=auto"])
       - uses: julia-actions/julia-runtest@v1
+        with:
+          check_bounds: 'auto'
         env:
           JULIA_NUM_THREADS: 2
       
